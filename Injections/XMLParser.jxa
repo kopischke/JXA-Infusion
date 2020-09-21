@@ -46,38 +46,38 @@ class XMLNode {
        * @memberof XMLNode
        * @instance
        */
-      _raw:  { get: () => _NSXMLObject },
-      index: { get: () => Number(_NSXMLObject.index) },
-      kind:  { get: () => Number(_NSXMLObject.kind) },
-      level: { get: () => Number(_NSXMLObject.level) },
-      name:  { get: () => _NSXMLObject.name.js },
+      _raw:  { get: function () { return _NSXMLObject }},
+      index: { get: function () { return Number(_NSXMLObject.index) }},
+      kind:  { get: function () { return Number(_NSXMLObject.kind) }},
+      level: { get: function () { return Number(_NSXMLObject.level) }},
+      name:  { get: function () { return _NSXMLObject.name.js }},
       stringValue: {
-        get: () => _NSXMLObject.stringValue.js,
-        set: (string, resolve) => {
+        get: function () { return _NSXMLObject.stringValue.js},
+        set: function (string, resolve) {
           let str = string.toString()
           let res = resolve == true
           _NSXMLObject.setStringValueResolvingEntities(str, res)
         }
       },
       URI: {
-        get: () => _NSXMLObject.URI.js,
-        set: (uri) => _NSXMLObject.setURI(uri.toString())
+        get: function () { return _NSXMLObject.URI.js },
+        set: function (uri) { return _NSXMLObject.setURI(uri.toString()) }
       },
       rootDocument: {
-        get: () => {
+        get: function () {
           if (this.kind == S.NSXMLDocumentKind) return this
           let root = _NSXMLObject.rootDocument
           return root.isNil() ? undefined : new XMLNode(root)
         }
       },
       parent: {
-        get: () => {
+        get: function () {
           let parent = _NSXMLObject.parent
           return parent.isNil() ? undefined : new XMLNode(parent)
         }
       },
       detach: {
-        value: () => {
+        value: function () {
           let root = _NSXMLObject.rootDocument
           if (!root.isNil()) _NSXMLObject.detach
         }
@@ -91,28 +91,30 @@ class XMLNode {
       * @instance
       */
       nodesForXPath: {
-        value: query => {
+        value: function (query) {
           let error = $()
           let found = _NSXMLObject.nodesForXPathError(query, error)
           if (found.isNil()) throw error.localizedDescription.js
-          return found.js.map(n => new XMLNode(n))
+          return found.js.map(function (n) { return new XMLNode(n) })
         }
       },
       toString: {
-        value: options => {
+        value: function (options) {
           let opts = Number(options || $.NSXMLNodeOptionsNone)
           return _NSXMLObject.XMLStringWithOptions(opts).js
         }
       },
       toCanonicalString: {
-        value: withComments => {
+        value: function (withComments) {
           let comments = withComments != null
           return _NSXMLObject.canonicalXMLStringPreservingComments(comments).js
         }
       },
-      isConnected: { get: () => !_NSXMLObject.rootDocument.isNil() },
+      isConnected: {
+        get: function () { return !_NSXMLObject.rootDocument.isNil() }
+      },
       isEqualNode: {
-        value: (other) => {
+        value: function (other) {
           // The NSXMLNode implementation of `isEqual` compares the hashes,
           // thus conforming to the documented `NSObject` protocol behaviour
           // (which is not the same as the undocumented `NSObject` default
@@ -121,7 +123,7 @@ class XMLNode {
         }
       },
       isSameNode: {
-        value: (other) => {
+        value: function (other) {
           let thisNode = _NSXMLObject
           let thisRoot = _NSXMLObject.rootDocument
           let otherNode = other._raw
@@ -151,36 +153,39 @@ class XMLNode {
     if (node.kind == $.NSXMLDocumentKind) {
       Object.defineProperties(this, {
         encoding: {
-          get: ()  => _NSXMLObject.characterEncoding.js,
-          set: (e) => _NSXMLObject.characterEncoding = e.toString()
+          get: function () { return _NSXMLObject.characterEncoding.js },
+          set: function (e) { _NSXMLObject.characterEncoding = e.toString() }
         },
         contentKind: {
-          get: ()  => _NSXMLObject.documentContentKind.js,
-          set: (k) => _NSXMLObject.documentContentKind(d) = k.toString()
+          get: function () { return _NSXMLObject.documentContentKind.js },
+          set: function (k) { _NSXMLObject.documentContentKind(d) = k.toString() }
         },
         DTD: {
-          get: ()  => _NSXMLObject.DTD,
-          set: (d) => _NSXMLObject.setDTD(d)
+          get: function () { return _NSXMLObject.DTD },
+          set: function (d) { _NSXMLObject.setDTD(d) }
         },
         standalone: {
-          get: ()  => _NSXMLObject.isStandalone.js,
-          set: (b) => _NSXMLObject.standalone(b == true)
+          get: function () { return _NSXMLObject.isStandalone.js },
+          set: function (b) { _NSXMLObject.standalone(b == true) }
         },
         MIMEType: {
-          get: ()  => _NSXMLObject.MIMEType.js,
-          set: (m) => _NSXMLObject.setMIMEType(m.toString())
+          get: function () { return _NSXMLObject.MIMEType.js },
+          set: function (m) { _NSXMLObject.setMIMEType(m.toString()) }
         },
         // URI is inherited from XMLNode
         version: {
-          get: ()  => _NSXMLObject.version.js,
-          set: (v) => _NSXMLObject.version = v.toString()
+          get: function () { return _NSXMLObject.version.js },
+          set: function (v) { _NSXMLObject.version = v.toString() }
         },
         rootElement: {
-          get: ()  => _NSXMLObject.rootElement,
-          set: (e) => _NSXMLObject.setRootElement(e)
+          get: function () { return new XMLNode(_NSXMLObject.rootElement) },
+          set: function (e) {
+            let elem = e instanceof XMLNode ? elem._raw : elem
+            _NSXMLObject.setRootElement(elem)
+          }
         },
         validate: {
-          value: quiet => {
+          value: function (quiet) {
             let error = $()
             let valid = _NSXMLObject.validateAndReturnError
             if (!quiet && !valid) throw error.localizedDescription.js
@@ -188,7 +193,7 @@ class XMLNode {
           }
         },
         toData: {
-          value: options => {
+          value: function (options) {
             let opts = Number(options || $.NSXMLPreserveAll)
             return _NSXMLObject.XMLDataWithOptions(opts)
           }
