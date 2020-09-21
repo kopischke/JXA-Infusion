@@ -1,0 +1,277 @@
+/**
+ * macOS native text parsing functionality.
+ * @author Martin Kopischke <martin@kopischke.net>
+ * @version 1.2.0
+ * @license MIT
+ * @namespace TextParser
+ */
+
+/** @private */
+const minOSVersion = { majorVersion: 10, minorVersion: 12, patchVersion: 0 }
+if (!$.NSProcessInfo.processInfo.isOperatingSystemAtLeastVersion(minOSVersion)) {
+  const msg = `macOS ${Object.values(minOSVersion).join('.')} required`
+  throw new Error(msg)
+}
+
+/**
+ * TextParser constants.
+ * @typedef {object} TextParserConstants
+ * @property {object.<string, string>} schemes - NSLinguisticTagScheme constants.
+ * @property {object.<string, string>} tokens - NSLinguisticTagSchemeTokenType constants.
+ * @property {object.<string, string>} classes - NSLinguisticTagSchemeLexicalClass constants.
+ * @property {object.<string, string>} names - NSLinguisticTagSchemeNameType constants.
+ * @property {object.<string, number>} types - NSTextCheckingType constants.
+ * @readonly
+ */
+const _NSConstants = {
+  schemes: Object.freeze({
+    tokenType: $.NSLinguisticTagSchemeTokenType.js,
+    lexicalClass: $.NSLinguisticTagSchemeLexicalClass.js,
+    nameType: $.NSLinguisticTagSchemeNameType.js,
+    nameTypeOrLexicalClass: $.NSLinguisticTagSchemeNameTypeOrLexicalClass.js,
+    lemma: $.NSLinguisticTagSchemeLemma.js,
+    language: $.NSLinguisticTagSchemeLanguage.js,
+    script: $.NSLinguisticTagSchemeScript.js
+  }),
+  tokens: Object.freeze({
+    word: $.NSLinguisticTagWord.js,
+    punctuation: $.NSLinguisticTagPunctuation.js,
+    whitespace: $.NSLinguisticTagWhitespace.js,
+    other: $.NSLinguisticTagOther.js
+  }),
+  classes: Object.freeze({
+    noun: $.NSLinguisticTagNoun.js,
+    verb: $.NSLinguisticTagVerb.js,
+    adjective: $.NSLinguisticTagAdjective.js,
+    pronoun: $.NSLinguisticTagPronoun.js,
+    determiner: $.NSLinguisticTagDeterminer.js,
+    particle: $.NSLinguisticTagParticle.js,
+    preposition: $.NSLinguisticTagPreposition.js,
+    number: $.NSLinguisticTagNumber.js,
+    conjunction: $.NSLinguisticTagConjunction.js,
+    interjection: $.NSLinguisticTagInterjection.js,
+    classifier: $.NSLinguisticTagClassifier.js,
+    idiom: $.NSLinguisticTagIdiom.js,
+    otherWord: $.NSLinguisticTagOtherWord.js,
+    sentenceTerminator: $.NSLinguisticTagSentenceTerminator.js,
+    openQuote: $.NSLinguisticTagOpenQuote.js,
+    closeQuote: $.NSLinguisticTagCloseQuote.js,
+    openParenthesis: $.NSLinguisticTagOpenParenthesis.js,
+    closeParenthesis: $.NSLinguisticTagCloseParenthesis.js,
+    wordJoiner: $.NSLinguisticTagWordJoiner.js,
+    dash: $.NSLinguisticTagDash.js,
+    otherPunctuation: $.NSLinguisticTagOtherPunctuation.js,
+    paragraphBreak: $.NSLinguisticTagParagraphBreak.js,
+    otherWhitespace: $.NSLinguisticTagParagraphBreak.js
+  }),
+  names: Object.freeze({
+    personal: $.NSLinguisticTagPersonalName.js,
+    place: $.NSLinguisticTagPlaceName.js,
+    organization: $.NSLinguisticTagOrganizationName.js
+  }),
+  types: Object.freeze({
+    address: Number($.NSTextCheckingTypeAddress),
+    date: Number($.NSTextCheckingTypeDate),
+    link: Number($.NSTextCheckingTypeLink),
+    phoneNumber: Number($.NSTextCheckingTypePhoneNumber),
+    transitInformation: Number($.NSTextCheckingTypeTransitInformation)
+  })
+}
+
+/**
+ * Get the relevant NSLinguistic* constants across to JXA.
+ * Needed as `Library()` only exposes functions.
+ * @returns {TextParserConstants} The full set of TextParser constants.
+ * @readonly
+ * @memberof TextParser
+ * @instance
+ */
+function constants () {
+  return Object.freeze(_NSConstants)
+}
+
+/**
+ * Private helper functions. Leverages the fact libraries do not expose constants.
+ * @namespace _private
+ * @private
+ */
+const _private = _NSConstants
+
+/**
+ * Extract an Array of data tokens of a designated type from a string, using keypath data.
+ * @function extract
+ * @returns {object} - The a token object of the matching type.
+ * @param {string} string - The string to tokenise.
+ * @param {string} type - A `TextParserConstants.type` (aka `NSTextCheckingType`) value.
+ * @param {string} keyPath - The key path to the information in the raw token.
+ * @memberof _private
+ * @private
+ */
+_private.extract = function (string, type, keyPath) {
+  var error = $()
+  const detector = $.NSDataDetector.dataDetectorWithTypesError(type, error)
+  if (detector.isNil()) throw new Error(error.localizedDescription())
+
+  const range = { location: 0, length: $(string).length }
+  const matches = detector.matchesInStringOptionsRange(string, 0, range)
+  return ObjC.unwrap(matches).map(v => {
+    const data = ObjC.deepUnwrap(v.valueForKeyPath(keyPath))
+    const raw = $(string).substringWithRange(v.range).js
+    const index = Number(v.range.location)
+    return { data: data, raw: raw, index: index }
+  })
+}
+
+/**
+ * Detect the dominant language of a string.
+ * @returns {string} A two-letter language code (or `undefined` if unsuccessful).
+ * @param {string} string - The string to analyse.
+ * @memberof TextParser
+ * @instance
+ */
+function language (string) {
+  const scheme = _private.schemes.language
+  const tagger = $.NSLinguisticTagger.alloc.initWithTagSchemesOptions($([scheme]), 0)
+  tagger.string = $(string)
+  const lang = tagger.tagAtIndexSchemeTokenRangeSentenceRange(0, scheme, null, null).js
+  return lang === 'und' ? undefined : lang
+}
+
+/**
+ * Get all available tokenisers for a designated language.
+ * @returns {string[]} The available NSLinguisticTagSchemes.
+ * @param {string} [language] - Two-letter code. Defaults to the current locale's language.
+ * @memberof TextParser
+ * @instance
+ */
+function tokenizers (language) {
+  if (language == null) language = $.NSLocale.currentLocale.languageCode
+  return ObjC.deepUnwrap(
+    $.NSLinguisticTagger.availableTagSchemesForLanguage(language)
+  )
+}
+
+/**
+ * Token object returned when tokenising a string.
+ * @typedef {object} Token
+ * @property {string} kind - The token kind.
+ * @property {number} index - The start index of the token in the source string.
+ * @property {string} value - The string matching the token.
+ */
+
+/**
+ * Tokenise a string with a designated scheme.
+ * @returns {Token[]} The tokens.
+ * @param {string} string - The string to tokenise.
+ * @param {string} scheme - The NSLinguisticTagScheme to use for the analysis.
+ * @memberof TextParser
+ * @instance
+ */
+function tokenize (string, scheme) {
+  const tagger = $.NSLinguisticTagger.alloc.initWithTagSchemesOptions($([scheme]), 0)
+  tagger.string = $(string)
+
+  const range = { location: 0, length: tagger.string.length }
+  var ranges = $()
+  const tokens = tagger.tagsInRangeSchemeOptionsTokenRanges(range, scheme, 0, ranges)
+  ranges = ObjC.unwrap(ranges)
+  return ObjC.deepUnwrap(tokens).map((v, i) => {
+    const range = ranges[i].rangeValue
+    const value = tagger.string.substringWithRange(range)
+    return { kind: v, index: Number(range.location), value: value.js }
+  })
+}
+
+/**
+ * Address data found in a string.
+ * @typedef {object} AddressMatch
+ * @property {string[]} data - The detected address components.
+ * @property {number} index - The index of the match in the source string.
+ * @property {string} raw - The matched source string.
+ */
+
+/**
+ * Get all address tokens from a string.
+ * @returns {AddressMatch[]} All token matches.
+ * @param {string} fromString - The string to tokenise.
+ * @memberof TextParser
+ * @instance
+ */
+function extractAddresses (fromString) {
+  return _private.extract(fromString, _private.types.address, 'addressComponents')
+}
+
+/**
+ * Date found in a string.
+ * @typedef {object} DateMatch
+ * @property {Date} data - The detected Date.
+ * @property {number} index - The index of the match in the source string.
+ * @property {string} raw - The matched source string.
+ */
+
+/**
+ * Get all date tokens from a string.
+ * @returns {DateMatch[]} All token matches.
+ * @param {string} fromString - The string to tokenise.
+ * @memberof TextParser
+ * @instance
+ */
+function extractDates (fromString) {
+  return _private.extract(fromString, _private.types.date, 'date')
+}
+
+/**
+ * Link found in a string.
+ * @typedef {object} LinkMatch
+ * @property {string} data - The detected Link.
+ * @property {number} index - The of the match.
+ * @property {string} raw - The raw match.
+ */
+
+/**
+ * Get all link tokens from a string.
+ * @returns {LinkMatch[]} All token matches.
+ * @param {string} fromString - The string to tokenise.
+ * @instance
+ */
+function extractLinks (fromString) {
+  return _private.extract(fromString, _private.types.link, 'URL.absoluteString')
+}
+
+/**
+ * Phone number found in a string.
+ * @typedef {object} PhoneNumberMatch
+ * @property {string} data - The detected phone number.
+ * @property {number} index - The index of the match in the source string.
+ * @property {string} raw - The matched source string.
+ */
+
+/**
+ * Get all phone number tokens from a string.
+ * @returns {PhoneNumberMatch[]} All token matches.
+ * @param {string} fromString - The string to tokenise.
+ * @memberof TextParser
+ * @instance
+ */
+function extractPhoneNumbers (fromString) {
+  return _private.extract(fromString, _private.types.phoneNumber, 'phoneNumber')
+}
+
+/**
+ * Transit info data found in a string.
+ * @typedef {object} TransitInfoMatch
+ * @property {string[]} data - The detected transit info components.
+ * @property {number} index - The index of the match in the source string.
+ * @property {string} raw - The matched source string.
+ */
+
+/**
+ * Get all transit info tokens from a string.
+ * @returns {TransitInfoMatch[]} All token matches.
+ * @param {string} fromString - The string to tokenise.
+ * @memberof TextParser
+ * @instance
+ */
+function extractTransitInfo (fromString) {
+  return _private.extract(fromString, _private.types.transitInfo, 'components')
+}
