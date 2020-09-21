@@ -1,0 +1,200 @@
+/**
+ * macOS native file search functionality.
+ * @author Martin Kopischke <martin@kopischke.net>
+ * @version 1.5.0
+ * @license MIT
+ * @namespace Spotlight
+ */
+
+/** @private */
+const minOSVersion = { majorVersion: 10, minorVersion: 12, patchVersion: 0 }
+if (!$.NSProcessInfo.processInfo.isOperatingSystemAtLeastVersion(minOSVersion)) {
+  const msg = `macOS ${Object.values(minOSVersion).join('.')} required`
+  throw new Error(msg)
+}
+
+ObjC.import('CoreServices')
+
+/**
+ * CF Bridging functions.
+ * @see {@link http://stackoverflow.com/a/35007108/990363}
+ * Note that, before macOS 10.12.5, CF types would be wrapped in Ref objects and needed to be
+ * unwrapped to their bridged NS type via the `toNS()` hack below at every step;
+ * as of 10.12.5, this seems to only be necessary for CF objects passed as arguments
+ * to CF functions along NS objects (mixes of CF and NS arguments still go boom).
+ * @memberof Spotlight
+ * @private
+ */
+
+/** @private */
+ObjC.bindFunction('CFMakeCollectable', ['id', ['void *']])
+
+/**
+ * Cast a CF type reference to the equivalent NS type.
+ * @returns {object} The reference as a matching NS type.
+ * @private
+ */
+Ref.prototype.toNS = function () { return $.CFMakeCollectable(this) }
+
+/** @private */
+const macOSCFSafe = { majorVersion: 10, minorVersion: 12, patchVersion: 5 }
+
+/** @private */
+const CFsafe = $.NSProcessInfo.processInfo.isOperatingSystemAtLeastVersion(macOSCFSafe)
+
+if (!CFsafe) {
+  /** @private */
+  ObjC.bindFunction('CFRelease', ['void', ['void *']])
+
+  /** @private */
+  Ref.prototype.release = function () { $.CFRelease(this) }
+}
+
+/**
+ * Private helper functions. Leverages the fact libraries do not expose constants.
+ * @memberof Spotlight
+ * @private
+ */
+const _private = {
+  // Compare same-type items {a} and {b} safely and correctly;
+  // sorts `undefined` top (consistent with `MDQuery` native sorting).
+  compare: function compare (a, b) {
+    if (a === b) { return 0 }
+    if (b === undefined) { return -1 }
+    switch (typeof a) {
+      case 'undefined':
+        return 1
+      case 'string':
+        return a.localeCompare(b)
+      case 'number':
+      case 'date':
+      case 'boolean':
+        return a - b
+      case 'object':
+        if (Array.isArray(a)) {
+          let compared = a.length - b.length
+          let idx = 0
+          while (compared === 0 && idx < b.length) {
+            compared = compare(a[idx], b[idx++])
+          }
+          return compared
+        }
+        break
+      default:
+        return 0
+    }
+  },
+
+  // Normalise arguments to an Array of Strings.
+  strArray: function (obj) {
+    return [].concat(obj).map(v => v.toString())
+  }
+}
+
+/**
+ * Run a Spotlight query in (a) designated location(s).
+ * Unlike with the MDQuery API, sorting on 'kMDItemPath' actually works.
+ * @returns {object[]} The matches for the query, keyed on `matchValues`.
+ * @param {string} query - The Spotlight query to use.
+ * @param {string|string[]} [locations='kMDQueryScopeAllIndexed'] - The kMDQueryScope(s) to search.
+ * @param {string|string[]} [matchValues='kMDItemPath'] - The kmDItem* value(s) to retrieve.
+ * @param {string} [sortedBy] - The kmDItem* metadata value(s) to sort results by.
+ * @param {number=} maxResults - The maximum number of matches to return (all if unspecified).
+ * @throws {Error} When en error occurs executing the query.
+ * @memberof Spotlight
+ * @instance
+ */
+function find (query, locations, matchValues, sortedBy, maxResults) {
+  // Query execution mode flags (Objective C enum, thus not directly availabe).
+  const MDQueryOptionFlags = { Synchronous: 1, WantsUpdate: 4, AllowFSTranslation: 8 }
+
+  // Return values Array.
+  let retValues = []
+
+  // Use defaults for missing or `null`ed optional arguments.
+  const queryScopes = locations != null ? _private.strArray(locations) : ['kMDQueryScopeAllIndexed']
+  let queryValueAttrs = matchValues != null ? _private.strArray(matchValues) : ['kMDItemPath']
+  let querySortAttrs = sortedBy != null ? _private.strArray(sortedBy) : $()
+
+  // Work around the Cocoa Spotlight API’s inability to sort query matches on 'kMDItemPath'.
+  let pathSortAttrs = []
+  const pathSortValueAttrs = []
+  const pathSortIndex = Array.isArray(querySortAttrs) ? querySortAttrs.indexOf('kMDItemPath') : -1
+  const pathSortUsed = pathSortIndex !== -1
+  if (pathSortUsed) {
+    // Ignore everything after 'kMDItemPath' (as that is, by defintion, unique).
+    pathSortAttrs = querySortAttrs.slice(0, pathSortIndex + 1)
+
+    // Let Spotlight sort on everything before 'kMDItemPath' (on the assumption that
+    // natively sorting, then iterating over the sorted results is more efficient than
+    // sorting all levels in JavaScript).
+    querySortAttrs = pathSortIndex ? pathSortAttrs.slice(0, -1) : $()
+
+    // Make all value attributes sorted on available in results for the manual sort
+    // (we will reuse this list to later remove the sort-only keys from the results).
+    pathSortAttrs.forEach(v => {
+      if (queryValueAttrs.indexOf(v) === -1) pathSortValueAttrs.push(v)
+    })
+    queryValueAttrs = queryValueAttrs.concat(pathSortValueAttrs)
+  }
+
+  // Do the search proper and retrieve the values.
+  const queryCF = $.MDQueryCreate($(), $(query), $(queryValueAttrs), $(querySortAttrs))
+  try {
+    $.MDQuerySetSearchScope(CFsafe ? queryCF : queryCF.toNS(), $(queryScopes), 0)
+    if (maxResults > 0) { $.MDQuerySetMaxCount(queryCF, maxResults) }
+    if ($.MDQueryExecute(queryCF, MDQueryOptionFlags.Synchronous)) {
+      $.MDQueryStop(queryCF)
+      for (var i = 0; i < $.MDQueryGetResultCount(queryCF); i++) {
+        const mdItem = $.MDQueryGetResultAtIndex(queryCF, i)
+        const mdAttrs = $.MDItemCopyAttributes(mdItem.toNS(), $(queryValueAttrs))
+        retValues.push(ObjC.deepUnwrap(CFsafe ? mdAttrs : mdAttrs.toNS()))
+      }
+    }
+  } finally {
+    // as of macOS 10.12.5 trying to release our MDQuery object crashes the script
+    if (!CFsafe) queryCF.release()
+  }
+
+  // No point for further processing if we have no results
+  if (retValues.length === 0) return retValues
+
+  // Ensure a correct cascading sort when 'kMDItemPath' is included in {sortedBy}.
+  // Using `MDQuerySetSortComparatorBlock` would probably be more effective,
+  // but JS functions do not seem to bridge into it.
+  if (pathSortUsed) {
+    retValues.sort((a, b) => {
+      for (let idx = 0; idx < pathSortAttrs.length; idx++) {
+        var compared = _private.compare(a[pathSortAttrs[idx]], b[pathSortAttrs[idx]])
+        if (compared !== 0) break
+      }
+      return compared
+    })
+
+    // Remove value attributes added for sort purposes only from the matches.
+    if (pathSortValueAttrs.length > 0) {
+      retValues = retValues.map(value => {
+        pathSortValueAttrs.forEach(k => delete value[k])
+        return value
+      })
+    }
+  }
+  return retValues
+}
+
+/**
+ * Get the Spotlight metadata for a file system item.
+ * @returns {object} The Spotlight metadata for the item.
+ * @param {string|Path} forPath - Path to the file system object.
+ * @memberof Spotlight
+ * @instance
+ */
+function metadata (forPath) {
+  const mdItem = $.MDItemCreate($(), $(forPath.toString()))
+  if (!mdItem.isNil()) {
+    const mdNames = $.MDItemCopyAttributeNames(mdItem)
+    const mdAttrs = $.MDItemCopyAttributes(mdItem, mdNames)
+    return ObjC.deepUnwrap(mdAttrs)
+  }
+  return {}
+}
