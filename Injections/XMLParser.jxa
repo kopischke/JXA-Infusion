@@ -25,14 +25,7 @@ class XMLNode {
   constructor (from) {
     let node
     if (from != null) {
-      if (from instanceof XMLNode) {
-        node = from._raw
-      } else if (
-        typeof from != typeof ObjC.unwrap(from) &&
-        from.isKindOfClass($.NSXMLNode.class)
-      ) {
-        node = from
-      }
+      node = from instanceof XMLNode ? from._raw : from
     }
 
     const _NSXMLObject = node || $.NSXMLNode.alloc.initWithKind($.NSXMLInvalidKind)
