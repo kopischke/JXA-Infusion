@@ -1,0 +1,30 @@
+/**
+ * macOS native network functionality.
+ * @author Martin Kopischke <martin@kopischke.net>
+ * @version 1.1.0
+ * @license MIT
+ * @namespace Network
+ */
+
+/** @private */
+const minOSVersion = { majorVersion: 10, minorVersion: 12, patchVersion: 0 }
+if (!$.NSProcessInfo.processInfo.isOperatingSystemAtLeastVersion(minOSVersion)) {
+  const msg = `macOS ${Object.values(minOSVersion).join('.')} required`
+  throw new Error(msg)
+}
+
+ObjC.import('SystemConfiguration')
+
+/**
+ * Check if there is internet connectivity.
+ * @returns {boolean} Is there internet connectivity?
+ * @memberof Network
+ * @instance
+ */
+function hasInternetConnection () {
+  var flags = Ref()
+  const hostRef = $.SCNetworkReachabilityCreateWithName($(), 'www.appleiphonecell.com')
+  const flagReachable = 1 << 1 // kSCNetworkReachabilityFlagsReachable
+  if (!$.SCNetworkReachabilityGetFlags(hostRef, flags)) return undefined
+  return ((flags[0] & flagReachable) === flagReachable)
+}
