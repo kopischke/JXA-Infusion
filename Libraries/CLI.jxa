@@ -1,0 +1,126 @@
+/**
+ * **macOS native command line functionality.**
+ *
+ * Because `app.doShellScript` doesn’t really cut it.
+ * @summary macOS native command line functionality.
+ * @author Martin Kopischke <martin@kopischke.net>
+ * @version 1.4.0
+ * @license MIT
+ * @namespace CLI
+ */
+
+/** @private */
+const minOSVersion = { majorVersion: 10, minorVersion: 12, patchVersion: 0 }
+if (!$.NSProcessInfo.processInfo.isOperatingSystemAtLeastVersion(minOSVersion)) {
+  const msg = `macOS ${Object.values(minOSVersion).join('.')} required`
+  throw new Error(msg)
+}
+
+/**
+ * Private helper functions. Leverages the fact libraries do not expose constants.
+ * @memberof CLI
+ * @private
+ */
+const _private = {
+  // Convert a Path (or path String) to a file URL.
+  pathToURL: function (path) {
+    const expanded = $(path.toString()).stringByExpandingTildeInPath
+    return $.NSURL.fileURLWithPath(expanded)
+  },
+  // Read the contents of a pipe, then close it.
+  pipeResult: function (pipe) {
+    const pipeData = pipe.fileHandleForReading.readDataToEndOfFile
+    let pipeText = $.NSString.alloc.initWithDataEncoding(pipeData, $.NSUTF8StringEncoding).js
+    pipeText = pipeText.replace(/\n$/, '') // remove trailing newline
+    pipe.closeFile
+    return pipeText
+  }
+}
+
+/**
+ * Task result object.
+ * @typedef {object} TaskResult
+ * @property {string} outText - The standard output of the task.
+ * @property {string} errText - The standard error of the task.
+ * @property {number} exitCode - The task’s exit code.
+ */
+
+/**
+ * Synchronous command line task running based on NSTask:
+ * no quoting needed, no expansion of shell variables happening.
+ * Note `NSTask.currentDirectoryPath`, `NSTask.launchPath` and `NSTask.launch`
+ * are deprecated as of macOS 10.13. See {@link https://stackoverflow.com/a/47315339}
+ * for the NSURL based replacement API used here.
+ * @returns {TaskResult} The task execution result.
+ * @param {(string|Path)} what - Path to the task executable to launch.
+ * @param {string|string[]} [args] - Argument(s) to pass to the executable,
+ * one array element per shell word.
+ * @param {object} [options] - Options for handling the task launch.
+ * @param {(string|Path)} [options.pwd] - Working directory for the task.
+ * @param {object} [options.env] - Environment to set for the task.
+ * @param {string} [options.input] - Data to pipe into stdin.
+ * @throws {Error} NSTask launch errors.
+ * @memberof CLI
+ * @instance
+ */
+function runTask (what, args, options) {
+  const runner = $.NSTask.alloc.init
+
+  if (options == null) options = {}
+  if (options.env) runner.environment = options.env
+  if (options.pwd) runner.currentDirectoryURL = _private.pathToURL(options.pwd)
+
+  // Setting standardInput to a pipe even if there is no input might sometimes be
+  // necessary, see https://stackoverflow.com/a/3471491.
+  const outPipe = $.NSPipe.pipe
+  const errPipe = $.NSPipe.pipe
+  const inPipe = $.NSPipe.pipe
+  runner.standardOutput = outPipe
+  runner.standardError = errPipe
+  runner.standardInput = inPipe
+
+  // Locate executable to run, if requested.
+  runner.executableURL = _private.pathToURL(what.toString())
+  runner.arguments = [].concat(args) || []
+
+  // Write input data passed in `options.input` to the input pipe (then close it).
+  if (options.input) {
+    const inputData = $(options.input).dataUsingEncoding($.NSUTF8StringEncoding)
+    inPipe.fileHandleForWriting.writeDataToEndOfFile(inputData)
+    inPipe.closeFile
+  }
+
+  var error = $()
+  if (!runner.launchAndReturnError(error)) throw new Error(error.localizedDescription.js)
+  runner.waitUntilExit // synchronous execution
+
+  return {
+    exitCode: runner.terminationStatus,
+    outText: _private.pipeResult(outPipe),
+    errText: _private.pipeResult(errPipe)
+  }
+}
+
+/**
+ * Locate an executable using `which`.
+ * @since 1.3.0
+ * @returns {string|boolean} The path to the located executable,
+ * or whether it is found, depending on `options.quiet`.
+ * @param {string} what - The executable to look for.
+ * @param {object} [options] - Options affecting `which` behaviour.
+ * @param {boolean} [options.quiet=false] - Return a boolean indicating search success.
+ * @throws {Error} If `what` could not be located and `options.quiet` is falsy.
+ * @memberof CLI
+ * @instance
+ */
+function which (what, options) {
+  what = what.toString()
+  if (options == null) options = {}
+  const result = runTask('/usr/bin/which', [what])
+  if (options.quiet) return result.exitCode === 0
+  if (result.exitCode > 0) {
+    const suffix = `${result.errText.length ? ':' + result.errText : '.'}`
+    throw new Error(`Cannot locate executable “${what}”${suffix}`)
+  }
+  return result.outText
+}
