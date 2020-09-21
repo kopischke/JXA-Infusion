@@ -1,0 +1,117 @@
+/**
+ * macOS native Finder tagging functionality.
+ * @author Martin Kopischke <martin@kopischke.net>
+ * @version 2.1.0
+ * @license MIT
+ * @namespace FinderTags
+ */
+
+/** @private */
+const minOSVersion = { majorVersion: 10, minorVersion: 12, patchVersion: 0 }
+if (!$.NSProcessInfo.processInfo.isOperatingSystemAtLeastVersion(minOSVersion)) {
+  const msg = `macOS ${Object.values(minOSVersion).join('.')} required`
+  throw new Error(msg)
+}
+
+/**
+ * Get the Finder tags of a file system item.
+ * @returns {string} The tags of the object.
+ * @param {string|Path} path - The path to the file system item.
+ * @param {object} [options] - Reading operation options.
+ * @param {boolean} [options.quiet=false] - Return an empty Array if an error occurs.
+ * @throws {Error} When an error occurs reading the tags, unless `options.quiet` is truthy.
+ * @memberof FinderTags
+ * @instance
+ */
+function getTags (path, options) {
+  if (options == null) options = {}
+  var value = $()
+  var error = $()
+
+  const pathURL = $.NSURL.fileURLWithPath(path.toString())
+  if (!pathURL.getResourceValueForKeyError(value, $.NSURLTagNamesKey, error)) {
+    if (options.quiet === true) return []
+    throw new Error(error.localizedDescription.js)
+  }
+  return value.isNil() ? [] : ObjC.deepUnwrap(value)
+}
+
+/**
+ * Set the Finder tags of a file system item, overwriting existing tags.
+ * @returns {string[]} The tags set for `path`, or `undefined` if the operation failed
+ * and `options.quiet` is truthy.
+ * @param {string|Path} path - The path to the file system item.
+ * @param {string|string[]} tags - The tags to set.
+ * @param {object} [options] - Tagging operation options.
+ * @param {boolean} [options.quiet=false] - Return `false` if an error occurs.
+ * @throws {Error} When an error occurs setting the tags, unless `options.quiet` is truthy.
+ * @memberof FinderTags
+ * @instance
+ */
+function setTags (path, tags, options) {
+  if (options == null) options = {}
+  tags = [].concat(tags).map(v => v.toString())
+
+  var error = $()
+  const pathURL = $.NSURL.fileURLWithPath(path.toString())
+  const didSet = pathURL.setResourceValueForKeyError(tags, $.NSURLTagNamesKey, error)
+  if (!didSet) {
+    if (options.quiet === true) return undefined
+    throw new Error(error.localizedDescription.js)
+  }
+  return tags
+}
+
+/**
+ * Add Finder tags to a file system item.
+ * @returns {string[]} The tags set for `path`, or `undefined` if the operation failed
+ * and `options.quiet` is truthy.
+ * @param {string|Path} path - The path to the file system item.
+ * @param {string|string[]} tags - The tags to add.
+ * @param {object} [options] - Tagging operation options.
+ * @param {boolean} [options.quiet=false] - Return `false` if an error occurs.
+ * @throws {Error} When an error occurs adding the tags, unless `options.quiet` is truthy.
+ * @memberof FinderTags
+ * @instance
+ */
+function addTags (path, tags, options) {
+  tags = [].concat(tags).map(v => v.toString())
+  const newTags = tags.reduce((acc, v) => {
+    if (acc.indexOf(v) === -1) acc.push(v)
+    return acc
+  }, getTags(path, options))
+  return setTags(path, newTags, options)
+}
+
+/**
+ * Remove specific Finder tags from a file system item.
+ * @returns {string[]} The tags set for `path`, or `undefined` if the operation failed
+ * and `options.quiet` is truthy.
+ * @param {string|Path} path - The path to the file system item.
+ * @param {string|string[]} tags - The tags to remove.
+ * @param {object} [options] - Tagging operation options.
+ * @param {boolean} [options.quiet=false] - Return `false` if an error occurs.
+ * @throws {Error} When an error occurs removing the tags, unless `options.quiet` is truthy.
+ * @memberof FinderTags
+ * @instance
+ */
+function removeTags (path, tags, options) {
+  tags = [].concat(tags).map(v => v.toString())
+  const newTags = getTags(path, options).filter(v => tags.indexOf(v) === -1)
+  return setTags(path, newTags, options)
+}
+
+/**
+ * Remove all Finder tags from a file system item.
+ * @returns {string[]} The tags set for `path`, or `undefined` if the operation failed
+ * and `options.quiet` is truthy.
+ * @param {string|Path} path - The path to the file system item.
+ * @param {object} [options] - Tagging operation options.
+ * @param {boolean} [options.quiet=false] - Return `false` if an error occurs.
+ * @throws {Error} When an error occurs removing the tags, unless `options.quiet` is truthy.
+ * @memberof FinderTags
+ * @instance
+ */
+function clearTags (path, options) {
+  return setTags(path, [], options)
+}
