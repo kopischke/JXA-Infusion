@@ -1,0 +1,266 @@
+/**
+ * macOS native XML tree parsing functionality.
+ * @author Martin Kopischke <martin@kopischke.net>
+ * @version 1.0.0
+ * @license MIT
+ * @module
+ */
+
+/**
+ * An XML node (wraps NSXMLNode and subclasses).
+ * NSXMLElement and NSXMLDocument are represented as specialised forms
+ * of this object instead of as derived classes. This is the best way to model
+ * the polymorphic constructors in Apple’s NSXML API. Just to show why,
+ *
+ * var node = $.NSXMLNode.alloc.initWithKind($.NSXMLDocumentKind)
+ * node.isKindOfClass($.NSXMLDocument.class)
+ *
+ * will return `true`; the NXMLNode constructor returns the NSXMLNode subclass
+ * that matches the node’s `kind`. This kind of class juggling is impossible to
+ * track across glorifified JXA wrappers – which is why we don’t even try.
+ * @summary An XML node (wraps NSXMLNode and subclasses).
+ * @class XMLNode
+ */
+class XMLNode {
+  constructor (from) {
+    let node
+    if (from != null) {
+      if (from instanceof XMLNode) {
+        node = from._raw
+      } else if (
+        typeof from != typeof ObjC.unwrap(from) &&
+        from.isKindOfClass($.NSXMLNode.class)
+      ) {
+        node = from
+      }
+    }
+
+    const _NSXMLObject = node || $.NSXMLNode.alloc.initWithKind($.NSXMLInvalidKind)
+
+    // Common XMLNode interface. Mostly wrappers for the NSXMLNode interface,
+    // with a bit of `Node` semantics thrown in for convenience.
+    Object.defineProperties(this, {
+      /**
+       * Accessor for the underlying NSXMLNode object.
+       * @private {NSXMLNode}
+       * @memberof XMLNode
+       * @instance
+       */
+      _raw:  { get: () => _NSXMLObject },
+      index: { get: () => Number(_NSXMLObject.index) },
+      kind:  { get: () => Number(_NSXMLObject.kind) },
+      level: { get: () => Number(_NSXMLObject.level) },
+      name:  { get: () => _NSXMLObject.name.js },
+      stringValue: {
+        get: () => _NSXMLObject.stringValue.js,
+        set: (string, resolve) => {
+          let str = string.toString()
+          let res = resolve == true
+          _NSXMLObject.setStringValueResolvingEntities(str, res)
+        }
+      },
+      URI: {
+        get: () => _NSXMLObject.URI.js,
+        set: (uri) => _NSXMLObject.setURI(uri.toString())
+      },
+      rootDocument: {
+        get: () => {
+          if (this.kind == S.NSXMLDocumentKind) return this
+          let root = _NSXMLObject.rootDocument
+          return root.isNil() ? undefined : new XMLNode(root)
+        }
+      },
+      parent: {
+        get: () => {
+          let parent = _NSXMLObject.parent
+          return parent.isNil() ? undefined : new XMLNode(parent)
+        }
+      },
+      detach: {
+        value: () => {
+          let root = _NSXMLObject.rootDocument
+          if (!root.isNil()) _NSXMLObject.detach
+        }
+      },
+      /**
+      * Query an XMLNode using XPath.
+      * @returns {XMLNode[]} The nodes comforming to the query.
+      * @param {string} query - The XPath query to apply.
+      * @throws {Error} When the XPath query fails.
+      * @memberof XMLNode
+      * @instance
+      */
+      nodesForXPath: {
+        value: query => {
+          let error = $()
+          let found = _NSXMLObject.nodesForXPathError(query, error)
+          if (found.isNil()) throw error.localizedDescription.js
+          return found.js.map(n => new XMLNode(n))
+        }
+      },
+      toString: {
+        value: options => {
+          let opts = Number(options || $.NSXMLNodeOptionsNone)
+          return _NSXMLObject.XMLStringWithOptions(opts).js
+        }
+      },
+      toCanonicalString: {
+        value: withComments => {
+          let comments = withComments != null
+          return _NSXMLObject.canonicalXMLStringPreservingComments(comments).js
+        }
+      },
+      isConnected: { get: () => !_NSXMLObject.rootDocument.isNil() },
+      isEqualNode: {
+        value: (other) => {
+          // The NSXMLNode implementation of `isEqual` compares the hashes,
+          // thus conforming to the documented `NSObject` protocol behaviour
+          // (which is not the same as the undocumented `NSObject` default
+          // implementation, see https://stackoverflow.com/a/4253490).
+          return _NSXMLObject.isEqual(other._raw)
+        }
+      },
+      isSameNode: {
+        value: (other) => {
+          let thisNode = _NSXMLObject
+          let thisRoot = _NSXMLObject.rootDocument
+          let otherNode = other._raw
+          let otherRoot = other._raw.rootDocument
+          if (
+            thisNode.index != otherNode.index ||
+            thisNode.kind  != otherNode.kind  ||
+            thisNode.level != otherNode.level ||
+            thisNode.name  != otherNode.name  ||
+            thisRoot.isNil() != otherRoot.isNil()
+          ) return false
+          let node = thisNode.isEqual(otherNode)
+          let root = thisRoot.isNil() ? thisRoot.isEqual(otherRoot) : true
+          return node && root
+        }
+      }
+    })
+
+    // Specialised element node interface.
+    if (node.kind == $.NSXMLElementKind) {
+      Object.defineProperties(this, {
+        // TODO: implement element node interface
+      })
+    }
+
+    // Specialised document node interface.
+    if (node.kind == $.NSXMLDocumentKind) {
+      Object.defineProperties(this, {
+        encoding: {
+          get: ()  => _NSXMLObject.characterEncoding.js,
+          set: (e) => _NSXMLObject.characterEncoding = e.toString()
+        },
+        contentKind: {
+          get: ()  => _NSXMLObject.documentContentKind.js,
+          set: (k) => _NSXMLObject.documentContentKind(d) = k.toString()
+        },
+        DTD: {
+          get: ()  => _NSXMLObject.DTD,
+          set: (d) => _NSXMLObject.setDTD(d)
+        },
+        standalone: {
+          get: ()  => _NSXMLObject.isStandalone.js,
+          set: (b) => _NSXMLObject.standalone(b == true)
+        },
+        MIMEType: {
+          get: ()  => _NSXMLObject.MIMEType.js,
+          set: (m) => _NSXMLObject.setMIMEType(m.toString())
+        },
+        // URI is inherited from XMLNode
+        version: {
+          get: ()  => _NSXMLObject.version.js,
+          set: (v) => _NSXMLObject.version = v.toString()
+        },
+        rootElement: {
+          get: ()  => _NSXMLObject.rootElement,
+          set: (e) => _NSXMLObject.setRootElement(e)
+        },
+        validate: {
+          value: quiet => {
+            let error = $()
+            let valid = _NSXMLObject.validateAndReturnError
+            if (!quiet && !valid) throw error.localizedDescription.js
+            return valid
+          }
+        },
+        toData: {
+          value: options => {
+            let opts = Number(options || $.NSXMLPreserveAll)
+            return _NSXMLObject.XMLDataWithOptions(opts)
+          }
+        }
+      })
+    }
+  }
+}
+
+/**
+ * Create XMLNode objects from textual XML input.
+ * @class XMLParser
+ */
+class XMLParser {
+  /**
+   * Create a document XMLNode from an XML string.
+   * @returns {XMLNode}
+   * @param {string} xml - The XML string to parse.
+   * @param {number} options - Bitmask of OR’ed NSXMLNodeOptions.
+   * @throws When given invalid input or a a parsing error occurs.
+   * @memberof XMLParser
+   * @static
+   */
+  static fromXMLDocument (xml, options) {
+    let opts = Number(options || XMLParser.defaultOptions)
+    let input = xml != null ? xml : ''
+    let error = $()
+    let doc = $.NSXMLDocument.alloc.initWithXMLStringOptionsError(input, opts, error)
+    if (doc.isNil()) throw error.localizedDescription.js
+    return new XMLNode(doc)
+  }
+
+  /**
+   * Create an element XMLNode from an XML string.
+   * @returns {XMLNode}
+   * @param {string} xml - The XML string to parse.
+   * @throws When given invalid input or a a parsing error occurs.
+   * @memberof XMLParser
+   * @static
+   */
+  static fromXMLFragment (xml) {
+    let input = xml != null ? xml : ''
+    let error = $()
+    let elem = $.NSXMLElement.alloc.initWithXMLStringError(input, error)
+    if (doc.isNil()) throw error.localizedDescription.js
+    return new XMLNode(elem)
+  }
+
+  /**
+   * Create a document XMLNode from the contents of an XML file.
+   * @returns {XMLNode}
+   * @param {string|Path} path - The path to the XML file to parse.
+   * @param {number} options - Bitmask of OR’ed NSXMLNodeOptions.
+   * @throws When given invalid input or a a parsing error occurs.
+   * @memberof XMLParser
+   * @static
+   */
+  static fromXMLFile (path, options) {
+    let opts = Number(options || XMLParser.defaultOptions)
+    let file = path != null ? $(path.toString()).stringByStandardizingPath : ''
+    let url = $.NSURL.fileURLWithPath(file)
+    let error = $()
+    let doc = $.NSXMLDocument.alloc.initWithContentsOfURLOptionsError(url, opts, error)
+    if (doc.isNil()) throw error.localizedDescription.js
+    return new XMLNode(doc)
+  }
+}
+
+/**
+ * Default NSXMLNodeOptions for parsing document XML.
+ * @constant {number}
+ * @memberof XMLParser
+ * @static
+ */
+XMLParser.defaultOptions = Number($.NSXMLNodeOptionsNone)
