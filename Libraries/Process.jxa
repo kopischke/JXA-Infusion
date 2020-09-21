@@ -1,0 +1,69 @@
+/**
+ * macOS native process information functionality.
+ * @author Martin Kopischke <martin@kopischke.net>
+ * @version 2.1.0
+ * @license MIT
+ * @namespace Process
+ */
+
+/**
+ * The NSProcessInfo information used
+ * @memberof Process
+ * @private
+ */
+const procInfo = $.NSProcessInfo.processInfo
+
+/** @private */
+const minOSVersion = { majorVersion: 10, minorVersion: 12, patchVersion: 0 }
+if (!procInfo.isOperatingSystemAtLeastVersion(minOSVersion)) {
+  const msg = `macOS ${Object.values(minOSVersion).join('.')} required`
+  throw new Error(msg)
+}
+
+/**
+ * Process information.
+ * @typedef {object} ProcInfo
+ * @property {string} name - The process name.
+ * @property {Path} path - The process' location in the file system.
+ * @property {number} id - The process identifier.
+ */
+
+/**
+ * Get information about the current process.
+ * @returns {ProcInfo} The process information.
+ * @memberof Process
+ * @instance
+ */
+function info () {
+  const infoData = {}
+  infoData.name = procInfo.processName.js
+  infoData.path = Path(procInfo.arguments.objectAtIndex(0).js)
+  infoData.id = Number(procInfo.processIdentifier)
+  return infoData
+}
+
+/**
+ * Return the arguments passed to the current process.
+ * Note argv[0] is the first passed argument, NOT the path to the process.
+ * @returns {string[]} The arguments.
+ * @memberof Process
+ * @instance
+ * @since 2.0.0
+ */
+function args () {
+  const args = procInfo.arguments
+  const argv = []
+  for (let i = 1; i < args.count; i++) argv.push(args.objectAtIndex(i).js)
+  return argv
+}
+
+/**
+ * Return environment variables for the current application.
+ * @returns {object} Keyed on the environment variable names.
+ * @memberof Process
+ * @instance
+ * @since 2.0.0
+ */
+function env () {
+  return ObjC.deepUnwrap(procInfo.environment)
+}
