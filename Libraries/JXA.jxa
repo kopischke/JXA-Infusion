@@ -1,0 +1,134 @@
+/**
+ * **JXA Runtime injection functionality.**
+ *
+ * The OSA library inclusion mechanism is somewhat limited insofar as it only
+ * returns functions and cannot cross language boundaries. That makes it unsuited
+ * to add JS constants and classes, and to handle Cocoa objects. It is also separating
+ * runtime spaces, meaning you cannot patch the JXA runtime from libraries to remedy any
+ * of the mentioned issues. This library offers a delivery way for JS injection code
+ * stored in `.jxa` files in the Script Library locations recognised by OS X / MacOS.
+ * @example
+ * // This monkey patches the `Path` object.
+ * // Using `Function()` is recommended over using `eval()`.
+ * const jxa = Library('JXA')
+ * var _p = new Function(jxa.source('Path')); _p(); _p = null
+ * @author Martin Kopischke <martin@kopischke.net>
+ * @version 2.1.0
+ * @license MIT
+ * @namespace JXA
+ */
+
+/** @private */
+const minOSVersion = { majorVersion: 10, minorVersion: 12, patchVersion: 0 }
+if (!$.NSProcessInfo.processInfo.isOperatingSystemAtLeastVersion(minOSVersion)) {
+  const msg = `macOS ${Object.values(minOSVersion).join('.')} required`
+  throw new Error(msg)
+}
+
+/**
+ * NSFileManager instance used by all FS access parts.
+ * @memberof JXA
+ * @private
+ */
+const fm = $.NSFileManager.defaultManager
+
+/**
+ * Get all existing paths where a JXA library module might be located.
+ * @returns {Path[]} The existing search paths for modules.
+ * @memberof JXA
+ * @instance
+ */
+function paths () {
+  const scriptLibDirName = 'Script Libraries'
+
+  // Get all Library paths from the system.
+  const dirURLs = fm.URLsForDirectoryInDomains($.NSLibraryDirectory, $.NSAllDomainsMask).js
+  let dirPaths = dirURLs.map(url => url.path.stringByAppendingPathComponent(scriptLibDirName))
+
+  // Add library paths supported from macOS 10.11 on;
+  // https://developer.apple.com/library/content/releasenotes/InterapplicationCommunication/RN-JavaScriptForAutomation/Articles/OSX10-11.html#//apple_ref/doc/uid/TP40014508-CH110-SW11
+  const procInfo = $.NSProcessInfo.processInfo
+
+  // Prepend library paths set in 'OSA_LIBRARY_PATH'.
+  const envVars = procInfo.environment
+  const libPath = envVars.objectForKey('OSA_LIBRARY_PATH')
+  if (!libPath.isNil()) {
+    const envPaths = libPath.js.split(':').reverse()
+    envPaths.forEach(p => dirPaths.unshift(p.stringByExpandingTildeInPath))
+  }
+
+  // Prepend the library path inside the current running bundle.
+  const application = Application.currentApplication()
+  application.includeStandardAdditions = true
+
+  const scriptPath = application.pathTo(this).toString()
+  const pathParts = [scriptPath, 'Contents', 'Library', scriptLibDirName]
+  const bundleURL = $.NSURL.fileURLWithPathComponents(pathParts)
+  dirPaths.unshift(bundleURL.path)
+
+  // Remove invalid (non-existing or non-directory) paths from the list.
+  var isDir = Ref()
+  dirPaths = dirPaths.filter(p => fm.fileExistsAtPathIsDirectory(p, isDir) && isDir[0])
+
+  return dirPaths.map(v => Path(v.js))
+}
+
+/**
+ * Locate a JXA library module by name.
+ * @returns {Path|Path[]} first found location, or all locations if `all` is truthy.
+ * @param {string} name - The name of the module to locate.
+ * @param {string} [all] - Whether to return all located library instances.
+ * @memberof JXA
+ * @instance
+ */
+function locate (name, all) {
+  const dirPaths = paths()
+
+  // Collect all valid paths containing the module file '{name}.jxa'.
+  var isDir = Ref()
+  const filename = $(name).stringByAppendingPathExtension('jxa')
+  const matches = dirPaths.reduce((acc, v) => {
+    const path = $(v.toString()).stringByAppendingPathComponent(filename)
+    if (fm.fileExistsAtPathIsDirectory(path, isDir) && !isDir[0]) {
+      acc.push(Path(path.js))
+      return acc
+    }
+  }, [])
+
+  return all ? matches : matches[0]
+}
+
+/**
+ * Get the literal contents of a JXA library module identified by name.
+ * Notes:
+ * - module files must be text files in a supported encoding;
+ * - module files must have the extension `.jxa`;
+ * - module files must be located in a supported OSA Script Library directory, but:
+ * - module files cannot be located inside other application bundles.
+ * Caveat: there is an issue where Script Editor will lock up when trying to display
+ * the return value of a `source` call. This happens consistently for some
+ * files, but damned if I know why (happens with some files that are shorter than
+ * files that do not exhibit the issue; with some pure ASCII files and some UTF-8 files,
+ * not with others; happens depending on file content, not file name).
+ * @see for kudos {@link https://github.com/dtinth/JXA-Cookbook/wiki/Importing-Scripts}
+ * @returns {string} Code literal.
+ * @param {string} name - The name of the module to locate.
+ * @throws {Error} When unable to read the file contents.
+ * @throws {RangeError} When unable to locate the module.
+ * @memberof JXA
+ * @instance
+ * @since 2.0.0
+ */
+function source (name) {
+  let path = locate(name)
+  var error = $()
+
+  if (path) {
+    path = path.toString()
+    const decodedString = $.NSString.stringWithContentsOfFileUsedEncodingError(path, null, error)
+    if (decodedString.isNil()) throw new Error(error.localizedDescription.js)
+    return decodedString.js
+  } else {
+    throw new RangeError(`JXA Module “${name}” not found.`)
+  }
+}
