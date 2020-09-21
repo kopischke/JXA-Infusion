@@ -1,0 +1,424 @@
+/**
+ * **macOS native file system item handling.**
+ *
+ * Because using `System events` is slow and cumbersome,
+ * and the Finder is both limited and noisy (“sproing”).
+ * @author Martin Kopischke <martin@kopischke.net>
+ * @version 3.2.0
+ * @license MIT
+ * @namespace FileManager
+ */
+
+/** @private */
+const minOSVersion = { majorVersion: 10, minorVersion: 12, patchVersion: 0 }
+if (!$.NSProcessInfo.processInfo.isOperatingSystemAtLeastVersion(minOSVersion)) {
+  const msg = `macOS ${Object.values(minOSVersion).join('.')} required`
+  throw new Error(msg)
+}
+
+/** @private */
+const manager = $.NSFileManager.defaultManager
+
+/**
+ * Private helper functions. Leverages the fact libraries do not expose constants.
+ * @memberof FileManager
+ * @private
+ */
+const _private = {
+  isDir: function (path) {
+    var directory = Ref()
+    manager.fileExistsAtPathIsDirectory(path, directory)
+    return directory[0]
+  },
+  toNSURL: function (path) {
+    return $.NSURL.fileURLWithPath(path)
+  }
+}
+
+/**
+ * Copy a file system item, bypassing the Finder.
+ * @returns {?Path} The path to the copied item, or `undefined` on
+ * failure with `options.quiet` set.
+ * @param {string|Path} path - Path to the file system item to copy.
+ * @param {string|Path} target - Path to the location to copy the item to.
+ * If this is a directory, the item will be copied to it under its original name;
+ * if not, the item is copied to the full path specification.
+ * @param {object} [options] - Copy operation options.
+ * @param {boolean} [options.quiet=false] - Return `false` on error.
+ * @throws {Error} When an error occurs copying the item, unless `options.quiet` is truthy.
+ * @memberof FileManager
+ * @instance
+ * @since 3.0.0
+ */
+function copy (path, target, options) {
+  if (options == null) options = {}
+
+  const orig = $(path.toString())
+  let dest = $(target.toString())
+  if (_private.isDir(dest)) {
+    dest = dest.stringByAppendingPathComponent(orig.lastPathComponent)
+  }
+
+  var error = $()
+  if (!manager.copyItemAtPathToPathError(orig, dest, error)) {
+    if (options.quiet) return undefined
+    throw new Error(error.localizedDescription.js)
+  }
+  return Path(dest.js)
+}
+
+/**
+ * Move a file system item, bypassing the Finder.
+ * @returns {?Path} The path to the moved item, or `undefined` on
+ * failure with `options.quiet` set.
+ * @param {string|Path} path - Path to the file system item to move.
+ * @param {string|Path} target - Path to the location to move the item to.
+ * If this is a directory, the item will be copied to it under its original name;
+ * if not, the item is moved to the full path specification.
+ * @param {object} [options] - Move operation options.
+ * @param {boolean} [options.quiet=false] - Return `false` on error.
+ * @throws {Error} When an error occurs moving the item,
+ * unless `options.quiet` is truthy.
+ * @memberof FileManager
+ * @instance
+ */
+function move (path, target, options) {
+  if (options == null) options = {}
+
+  const orig = $(path.toString())
+  let dest = $(target.toString())
+  if (_private.isDir(dest)) {
+    dest = dest.stringByAppendingPathComponent(orig.lastPathComponent)
+  }
+
+  var error = $()
+  if (!manager.moveItemAtPathToPathError(orig, dest, error)) {
+    if (options.quiet) return undefined
+    throw new Error(error.localizedDescription.js)
+  }
+  return Path(dest.js)
+}
+
+/**
+ * Rename a file system item, bypassing the Finder.
+ * Name and extension are handled separately; where they are `null`ed, the values
+ * from the source item are used (omitting both will make renaming a no-op).
+ * @returns {?Path} The path to the renamed item, or `undefined` on
+ * failure with `options.quiet` set.
+ * @param {string|Path} path - Path to the file system item to rename.
+ * @param {string} [name] - New name of the item (does not include the extension).
+ * @param {string} [extension] - New extension of the item.
+ * @param {object} [options] - Move operation options.
+ * @param {boolean} [options.quiet=false] - Return `false` on error.
+ * @throws {Error} When an error occurs renaming the item,
+ * unless `options.quiet` is truthy.
+ * @memberof FileManager
+ * @instance
+ */
+function rename (path, name, extension, options) {
+  if (name == null && extension == null) return path
+  if (options == null) options = {}
+
+  const orig = $(path.toString())
+  if (name == null) name = orig.lastPathComponent.stringByDeletingPathExtension
+  if (extension == null) extension = orig.pathExtension
+  const dest = orig
+    .stringByDeletingLastPathComponent
+    .stringByAppendingPathComponent(name)
+    .stringByAppendingPathExtension(extension)
+
+  var error = $()
+  if (!manager.moveItemAtPathToPathError(orig, dest, error)) {
+    if (options.quiet) return undefined
+    throw new Error(error.localizedDescription.js)
+  }
+  return Path(dest.js)
+}
+
+/**
+ * Delete a file system item, bypassing the macOS trash.
+ * @returns {?boolean} Success of the operation;
+ * note `false` is only returned on failure if `options.quiet` is set.
+ * @param {string|Path} path - Path to the file system item to delete.
+ * @param {object} [options] - Removal operation options.
+ * @param {boolean} [options.quiet=false] - Return `false` on error.
+ * @throws {Error} When an error occurs removing the item,
+ * unless `options.quiet` is truthy.
+ * @memberof FileManager
+ * @instance
+ */
+function remove (path, options) {
+  var error = $()
+  if (options == null) options = {}
+  const pathURL = _private.toNSURL(path.toString())
+
+  if (!manager.removeItemAtURLError(pathURL, error)) {
+    if (options.quiet === true) return false
+    throw new Error(error.localizedDescription.js)
+  }
+  return true
+}
+
+/**
+ * Puts a file system item into the macOS trash, bypassing the Finder.
+ * @returns {boolean} Success of the operation;
+ * note `false` is only returned on failure if `options.quiet` is set.
+ * @param {string|Path} path - Path to the file system item to delete.
+ * @param {object} [options] - Trash operation options.
+ * @param {boolean} [options.quiet=false] - Return `false` on error.
+ * @throws {Error} When an error occurs trashing the item,
+ * unless `options.quiet` is truthy.
+ * @memberof FileManager
+ * @instance
+ */
+function trash (path, options) {
+  var error = $()
+  if (options == null) options = {}
+  const pathURL = _private.toNSURL(path.toString())
+
+  if (!manager.trashItemAtURLResultingItemURLError(pathURL, $(), error)) {
+    if (options.quiet) return false
+    throw new Error(error.localizedDescription.js)
+  }
+  return true
+}
+
+/**
+ * Create a Finder alias to a file system item.
+ * @see {@link https://stackoverflow.com/a/17923494/990363}
+ * @returns {?Path} The path to the created alias, or `undefined` on
+ * failure with `options.quiet` set.
+ * note `false` is only returned on `options.quiet`.
+ * @param {string|Path} path - Path to the file system item the alias will point to.
+ * @param {string|Path} target - Path to the alias. If this is a directory,
+ * the alias will created there under the original item's name;
+ * if not, the alias will be created with the full path specification.
+ * @param {object} [options] - Alias operation options.
+ * @param {boolean} [options.quiet=false] - Return `false` on error.
+ * @throws {Error} When an error occurs aliasing the item,
+ * unless `options.quiet` is truthy.
+ * @memberof FileManager
+ * @instance
+ */
+function alias (path, target, options) {
+  if (options == null) options = {}
+
+  const orig = $(path.toString())
+  let dest = $(target.toString())
+  if (_private.isDir(dest)) dest = dest.stringByAppendingPathComponent(orig.lastPathComponent)
+  const sourceURL = _private.toNSURL(orig)
+  const targetURL = _private.toNSURL(dest)
+
+  var error = $()
+  const bookmarkData = sourceURL.bookmarkDataWithOptionsIncludingResourceValuesForKeysRelativeToURLError(
+    $.NSURLBookmarkCreationSuitableForBookmarkFile, $(), $(), error
+  )
+  if (bookmarkData.isNil() || !$.NSURL.writeBookmarkDataToURLOptionsError(
+    bookmarkData, targetURL, $.NSURLBookmarkCreationSuitableForBookmarkFile, error
+  )) {
+    if (options.quiet === true) return undefined
+    throw new Error(error.localizedDescription.js)
+  }
+  return Path(targetURL.url.js)
+}
+
+/**
+ * Create a symbolic link to a file system item.
+ * @see {@link https://stackoverflow.com/a/17923494/990363}
+ * @returns {?Path} The path to the created symlink, or `undefined` on
+ * failure with `options.quiet` set.
+ * @param {string|Path} path - Path to the file system item the link will point to.
+ * @param {string|Path} target - Path to the alias. If this is a directory,
+ * the link will created there under the original item's name;
+ * if not, the alias will be created with the full path specification.
+ * @param {object} [options] - Alias operation options.
+ * @param {boolean} [options.quiet=false] - Return `false` on error
+ * @throws {Error} When an error occurs linking the item,
+ * unless `options.quiet` is truthy.
+ * @memberof FileManager
+ * @instance
+ */
+function link (path, target, options) {
+  if (options == null) options = {}
+
+  const orig = $(path.toString())
+  let dest = $(target.toString())
+  if (_private.isDir(dest)) dest = dest.stringByAppendingPathComponent(orig.lastPathComponent)
+  const sourceURL = _private.toNSURL(orig)
+  const targetURL = _private.toNSURL(dest)
+
+  var error = $()
+  if (!manager.createSymbolicLinkAtURLWithDestinationURLError(targetURL, sourceURL, error)) {
+    if (options.quiet === true) return undefined
+    throw new Error(error.localizedDescription.js)
+  }
+  return Path(targetURL.url.js)
+}
+
+/**
+ * List the file system contents of a directory.
+ * @returns {Path[]} The directory contents.
+ * @param {string|Path} path - Full path of the directory to list.
+ * @param {object} [options] - List operation options.
+ * @param {boolean} [options.hidden=false] - Show hidden file system items.
+ * @param {boolean} [options.quiet=false] - Return an empty Array on error.
+ * @throws {Error} When an error occurs listing the directory contents,
+ * unless `options.quiet` is truthy.
+ * @memberof FileManager
+ * @instance
+ */
+function listDirectory (path, options) {
+  if (options == null) options = {}
+  const dirURL = _private.toNSURL(path.toString())
+
+  var error = $()
+  const contents = manager.contentsOfDirectoryAtURLIncludingPropertiesForKeysOptionsError(
+    dirURL, [], options.hidden === true ? $() : $.NSDirectoryEnumerationSkipsHiddenFiles, error
+  )
+  if (contents.isNil()) {
+    if (options.quiet === true) return []
+    throw new Error(error.localizedDescription.js)
+  }
+  return contents.js.map(p => Path(p.path.js))
+}
+
+/**
+ * Create a directory.
+ * @returns {boolean} Success of the operation;
+ * note `false` is only returned on `options.quiet`.
+ * @param {string|Path} path - Path to the directory to create.
+ * @param {object} [options] - Creation operation options.
+ * @param {boolean} [options.intermediates=false]  - Return `false` error
+ * @param {boolean} [options.quiet=false] - Return `false` on error
+ * @throws {Error} When an error occurs creating the directory,
+ * unless `options.quiet` is truthy.
+ * @memberof FileManager
+ * @instance
+ */
+function makeDirectory (path, options) {
+  var error = $()
+  if (options == null) options = {}
+  if (options.intermediates == null) options.intermediates = false
+  options.attributes = $() // TODO: handle attributes passed
+  const pathURL = _private.toNSURL(path.toString())
+
+  const created = manager.createDirectoryAtURLWithIntermediateDirectoriesAttributesError(
+    pathURL, options.intermediates, options.attributes, error
+  )
+  if (!created && options.quiet !== true) throw new Error(error.localizedDescription.js)
+  return created
+}
+
+/**
+ * Owner information for a file system item.
+ * @typedef {object} FSOwnerObject
+ * @property {number} id - The owner ID.
+ * @property {number} name - The owner name.
+ * @readonly
+ */
+
+/**
+ * Properties of a file system item.
+ * @typedef {object} FSPropertiesObject
+ * @property {FSOwnerObject} owner - The user owning the item.
+ * @property {FSOwnerObject} group - The group owning the item.
+ * @property {number} permissions - The POSIX permissions mask of the item.
+ * @property {number} fileSize - The size of the item, in bytes (does not include folder contents).
+ * @property {object} extendedAttributes - Extended file system attributes of the item.
+ * @property {boolean} isDirectory - Is the item a directory?
+ * @property {boolean} isPackage - Is the item a macOS package?
+ * @property {boolean} isFile - Is the item a regular file?
+ * @property {boolean} isAlias - Is the item a Finder alias?
+ * @property {boolean} isSymlink - Is the item a symbolic link?
+ * @property {boolean} isReadable - Can the current user read the item?
+ * @property {boolean} isWritable - Can the current user write the item?
+ * @property {boolean} isDeletable - Can the current user delete the item?
+ * @property {boolean} isExecutable - Can the current user delete the item?
+ * @property {boolean} isHidden - Is the item hidden from display?
+ * @property {boolean} isQuarantined - Is the item quarantined by macOS?
+ * @property {Date} dateCreated - Creation date (ctime) of the item.
+ * @property {Date} dateModified - Last modification date (mtime) of the item.
+ * @property {string} displayName - Localised name of the item.
+ * @property {string[]} displayParts - User visible parts of the path to the item.
+ * @property {string} typeUTI - Item type key (UTI).
+ * @property {string} typeName - Item type localised name.
+ * @property {object} quarantineData - macOS quarantine properties of the item.
+ * @readonly
+ */
+
+/**
+ * Get a file system item’s properties.
+ * Note we cannot include the access and addition dates of an item because
+ * unwrapping NSDate references returned by `NSURL.getResourceValueForKeyError`
+ * crashes the whole JXA script runtime in an unrecoverable way, and NSFileManager
+ * has no API to access these dates.
+ * @function getProperties
+ * @returns {FSPropertiesObject} The file system item’s properties.
+ * @param {Path|string} path - The path to the file system item to retrieve
+ * the properties information about.
+ * @throws {Error} When the properties of the item cannot be retrieved.
+ * @memberof FileManager
+ * @instance
+ */
+function getProperties (path) {
+  const pathNSString = $(path.toString())
+
+  var error = $()
+  let attrs = manager.attributesOfItemAtPathError(pathNSString, error)
+  if (attrs.isNil()) throw new Error(error.localizedDescription.js)
+  attrs = ObjC.deepUnwrap(attrs)
+
+  const attributes = {
+    owner: Object.freeze({
+      id: attrs.NSFileOwnerAccountID,
+      name: attrs.NSFileOwnerAccountName
+    }),
+    group: Object.freeze({
+      id: attrs.NSFileGroupOwnerAccountID,
+      name: attrs.NSFileGroupOwnerAccountName
+    }),
+    permissions: attrs.NSFilePosixPermissions,
+    fileSize: attrs.NSFileSize,
+    dateCreated: attrs.NSFileCreationDate,
+    dateModified: attrs.NSFileModificationDate,
+    extendedAttributes: attrs.NSFileExtendedAttributes
+  }
+
+  const url = _private.toNSURL(pathNSString)
+
+  const urlKeys = {
+    isVolume: $.NSURLIsVolumeKey,
+    isDirectory: $.NSURLIsDirectoryKey,
+    isPackage: $.NSURLIsPackageKey,
+    isFile: $.NSURLIsRegularFileKey,
+    isAlias: $.NSURLIsAliasFileKey,
+    isSymlink: $.NSURLIsSymbolicLinkKey,
+    isReadable: $.NSURLIsReadableKey,
+    isWritable: $.NSURLIsWritableKey,
+    isExecutable: $.NSURLIsExecutableKey,
+    isHidden: $.NSURLIsHiddenKey,
+    displayName: $.NSURLLocalizedNameKey,
+    typeUTI: $.NSURLTypeIdentifierKey,
+    typeName: $.NSURLLocalizedTypeDescriptionKey,
+    quarantineData: $.NSURLQuarantinePropertiesKey
+  }
+
+  Object.entries(urlKeys).forEach(entry => {
+    var value = Ref()
+    const gotIt = url.getResourceValueForKeyError(value, entry[1], $())
+    if (!gotIt || value[0].isNil()) {
+      value = undefined
+    } else if (value[0].className.js === 'NSURL') {
+      value = value[0].fileURL ? Path(value[0].path.js) : undefined
+    } else {
+      value = ObjC.deepUnwrap(value[0])
+    }
+    attributes[entry[0]] = value
+  })
+
+  attributes.isDeletable = manager.isDeletableFileAtPath(pathNSString)
+  attributes.isQuarantined = attributes.quarantineData != null
+  attributes.displayComponents = ObjC.deepUnwrap(manager.componentsToDisplayForPath(pathNSString))
+
+  return Object.freeze(attributes)
+}
