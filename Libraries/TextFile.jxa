@@ -1,0 +1,76 @@
+/**
+ * macOS native plain text file handling.
+ * @author Martin Kopischke <martin@kopischke.net>
+ * @version 1.2.0
+ * @license MIT
+ * @namespace TextFile
+ */
+
+/** @private */
+const minOSVersion = { majorVersion: 10, minorVersion: 12, patchVersion: 0 }
+if (!$.NSProcessInfo.processInfo.isOperatingSystemAtLeastVersion(minOSVersion)) {
+  const msg = `macOS ${Object.values(minOSVersion).join('.')} required`
+  throw new Error(msg)
+}
+
+/**
+ * Read a plain text file’s content, detecting its encoding if needed.
+ * @returns {string} The contents of the file.
+ * @param {string|Path}  path - Path to the file to read.
+ * @param {string} [encoding] - Use this NSStringEncoding when reading the file.
+ * @throws {Error} When an error occurs reading the file.
+ * @memberof TextFile
+ * @instance
+ */
+function read (path, encoding) {
+  var error = $()
+  path = $(path.toString()).stringByStandardizingPath.js
+  const decodedString = encoding
+    ? $.NSString.stringWithContentsOfFileEncodingError(path, encoding, error)
+    : $.NSString.stringWithContentsOfFileUsedEncodingError(path, null, error)
+  if (decodedString.isNil()) throw new Error(error.localizedDescription.js)
+  return decodedString.js
+}
+
+/**
+ * Write a String to a plain text file. Existing files are overwritten.
+ * @returns {boolean}  Success of the write; note `false` is only returned on `options.quiet`.
+ * @param {string} text - Text contents to write to file.
+ * @param {string|Path} path - Path to the file to write.
+ * @param {object} [options] - Write options.
+ * @param {boolean} [options.atomic=true] - Write the file atomically.
+ * @param {number} [options.encoding=NSUTF8StringEncoding] - NS*Encoding to use for writing.
+ * @param {boolean} [options.quiet=false] - Return `false` on error.
+ * @throws {Error} When an error occurs writing the file, unless options.quiet` is truthy.
+ * @memberof TextFile
+ * @instance
+ */
+function write (text, path, options) {
+  if (options == null) options = {}
+  const encoding = options.encoding || $.NSUTF8StringEncoding
+  const atomic = options.atomic || true
+
+  var error = $()
+  path = $(path.toString()).stringByStandardizingPath.js
+  const written = $(text).writeToFileAtomicallyEncodingError(path, atomic, encoding, error)
+  if (!written && !options.quiet) throw new Error(error.localizedDescription.js)
+  return written
+}
+
+/**
+ * Detect the encoding of a plain text file.
+ * @returns {number} The corresponding NSStringEncoding value.
+ * @param {string|Path} path - Path to the file to read.
+ * @throws {Error} When an error occurs reading the file.
+ * @memberof TextFile
+ * @instance
+ */
+function encoding (path) {
+  var encoding = Ref()
+  var error = $()
+  path = $(path.toString()).stringByStandardizingPath.js
+  if ($.NSString.stringWithContentsOfFileUsedEncodingError(path, encoding, error).isNil()) {
+    throw new Error(error.localizedDescription.js)
+  }
+  return Number(encoding[0])
+}
