@@ -1,0 +1,165 @@
+/**
+ * macOS native system functionality.
+ * @author Martin Kopischke <martin@kopischke.net>
+ * @version 1.4.0
+ * @license MIT
+ * @namespace System
+ */
+
+/** @private */
+const procInfo = $.NSProcessInfo.processInfo
+
+/** @private */
+const minOSVersion = { majorVersion: 10, minorVersion: 12, patchVersion: 0 }
+if (!procInfo.isOperatingSystemAtLeastVersion(minOSVersion)) {
+  const msg = `macOS ${Object.values(minOSVersion).join('.')} required`
+  throw new Error(msg)
+}
+
+/** @private */
+const fm = $.NSFileManager.defaultManager
+
+/**
+ * Get the path(s) for a system folder in the designated domain(s).
+ * For more convenience retrieving some often queried user directories,
+ * see the `pathToUser*` functions below.
+ * @returns {Path[]} The matching path(s).
+ * @param {number} folder - The `NSSearchPathDirectory` to look up.
+ * @param {number} domains - An OR’ed bit mask of `NSSearchPathDomainMask` domains.
+ * @memberof System
+ * @instance
+ */
+function pathTo (folder, domains) {
+  const mask = domains || $.NSAllDomainsMask
+  const urls = fm.URLsForDirectoryInDomains(folder, mask).js
+  return urls.map(u => Path(u.path.js))
+}
+
+/**
+ * Get the path to the current user’s Home directory.
+ * @returns {Path} The matching path.
+ * @memberof System
+ * @instance
+ */
+function pathToUserHome () {
+  return Path($.NSHomeDirectoryForUser($.NSUserName()).js)
+}
+
+/**
+ * Get the path to the current user’s Documents directory.
+ * @returns {Path} The matching path.
+ * @memberof System
+ * @instance
+ */
+function pathToUserDocuments () {
+  return pathTo($.NSDocumentDirectory, $.NSUserDomainMask)[0]
+}
+
+/**
+ * Get the path to the current user’s Desktop directory.
+ * @returns {Path} The matching path.
+ * @memberof System
+ * @instance
+ */
+function pathToUserDesktop () {
+  return pathTo($.NSDesktopDirectory, $.NSUserDomainMask)[0]
+}
+
+/**
+ * Get the path to the current user’s Downloads directory.
+ * @returns {Path} The matching path.
+ * @memberof System
+ * @instance
+ */
+function pathToUserDownloads () {
+  return pathTo($.NSDownloadsDirectory, $.NSUserDomainMask)[0]
+}
+
+/**
+ * Get the path to the current user’s Library directory.
+ * @returns {Path} The matching path.
+ * @memberof System
+ * @instance
+ */
+function pathToUserLibrary () {
+  return pathTo($.NSLibraryDirectory, $.NSUserDomainMask)[0]
+}
+
+/**
+ * Get the path to the current user’s Temp directory.
+ * @returns {Path} The matching path.
+ * @memberof System
+ * @instance
+ */
+function pathToTempDirectory () {
+  return Path($.NSTemporaryDirectory().js)
+}
+
+/**
+ * Get the OS version info in string form.
+ * @returns {string} The OS version string.
+ * @memberof System
+ * @instance
+ */
+function versionString () {
+  return procInfo.operatingSystemVersionString.js
+}
+
+/**
+ * Get the OS version info in Object form.
+ * @returns {object} The OS version.
+ * @memberof System
+ * @instance
+ */
+function versionInfo () {
+  const info = procInfo.operatingSystemVersion
+  Object.keys(info).forEach(function (k) { info[k] = Number(info[k]) })
+  return info
+}
+
+/**
+ * Check if the OS version is at least as specified.
+ * @returns {boolean} Is the OS version at least as specified?
+ * @param {number} [major=0] - The major OS version number to check.
+ * @param {number} [minor=0] - The minor OS version number to check.
+ * @param {number} [patch=0] - The patch OS version number to check.
+ * @memberof System
+ * @instance
+ */
+function versionAtLeast (major, minor, patch) {
+  const compVersion = {
+    majorVersion: major == null ? 0 : major,
+    minorVersion: minor == null ? 0 : minor,
+    patchVersion: patch == null ? 0 : patch
+  }
+  return procInfo.isOperatingSystemAtLeastVersion(compVersion)
+}
+
+/**
+ * Compare OS version info.
+ * Follows sort() semantics (i.e. returns < 0 if the compared version is
+ * smaller than the OS one, 0 if identical, > 0 if it is greater than the OS one).
+ * Missing or `null`ed arguments will be ignored for comparison purposes,
+ * starting with the first one so defined (i.e. `versionCompare(10, null, 5)`
+ * only compares the major version).
+ * @returns {number} The comparison result according to `sort()` semantics.
+ * @param {number} [major] - The major OS version number to compare.
+ * @param {number} [minor] - The minor OS version number to compare.
+ * @param {number} [patch] - The patch OS version number to compare.
+ * @memberof System
+ * @instance
+ */
+function versionCompare (major, minor, patch) {
+  let compared
+  let compVersion = Array.from(arguments)
+  const ignoreFrom = compVersion.indexOf(null)
+  if (ignoreFrom > -1) compVersion = compVersion.slice(0, ignoreFrom)
+
+  const osVerInfo = versionInfo()
+  const osVersion = [osVerInfo.majorVersion, osVerInfo.minorVersion, osVerInfo.patchVersion]
+  for (let i = 0; i < compVersion.length; i++) {
+    compared = compVersion[i] - osVersion[i]
+    if (compared !== 0) break
+  }
+  return compared
+}
