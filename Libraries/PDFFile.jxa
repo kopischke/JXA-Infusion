@@ -1,0 +1,127 @@
+/**
+ * macOS native PDF functionality.
+ * @author Martin Kopischke <martin@kopischke.net>
+ * @version 1.3.0
+ * @license MIT
+ * @namespace PDFFile
+ */
+
+/** @private */
+const minOSVersion = { majorVersion: 10, minorVersion: 12, patchVersion: 0 }
+if (!$.NSProcessInfo.processInfo.isOperatingSystemAtLeastVersion(minOSVersion)) {
+  const msg = `macOS ${Object.values(minOSVersion).join('.')} required`
+  throw new Error(msg)
+}
+
+ObjC.import('PDFKit')
+
+/**
+ * Private helper functions. Leverages the fact libraries do not expose constants.
+ * @memberof PDFFile
+ * @private
+ */
+const _private = {
+  pdfDoc: function (path) {
+    const url = $.NSURL.fileURLWithPath(path.toString())
+    return $.PDFDocument.alloc.initWithURL(url)
+  },
+
+  unlock: function (pdf, password) {
+    let unlocked = (!pdf.isEncrypted || !pdf.isLocked)
+    if (!unlocked && password) unlocked = pdf.unlockWithPassword(password)
+    return unlocked
+  }
+}
+
+/**
+ * Check if a PDF file’s contents are readable.
+ * @returns {boolean} Are the contents readable?
+ * @param {string|Path} path - Path to the PDF document.
+ * @param {string} password - Password to use to unlock the document.
+ * @memberof PDFFile
+ * @instance
+ */
+function isReadable (path, password) {
+  return _private.unlock(_private.pdfDoc(path), password)
+}
+
+/**
+ * Get a PDF file’s text.
+ * @returns {string} The file text, or `undefined` if the PDF could not be unlocked.
+ * @param {string|Path} path - Path to the PDF document.
+ * @param {object} [options] - Options for the reading operation.
+ * @param {string} [options.password] - Password to use to unlock the document.
+ * @param {boolean} [options.objects=false] - Include object embed placeholders?
+ * @param {boolean} [options.compact=false] - Strip empty pages?
+ * @memberof PDFFile
+ * @instance
+ */
+function getText (path, options) {
+  const doc = _private.pdfDoc(path)
+  if (options == null) options = {}
+  if (!_private.unlock(doc, options.password)) return undefined
+
+  let text = doc.string.js
+  if (!options.objects) text = text.replace(/\u{FFFC}/ug, '')
+  if (options.compact) text = text.replace(/\n{2,}/g, '\n')
+  return text.replace(/^\n$/, '')
+}
+/**
+ * The properties of a PDF file.
+ * @typedef {object} PDFProperties
+ * @property {boolean} encrypted - Is the PDF encrypted?
+ * @property {boolean} copyable - Is the PDF copyable?
+ * @property {string} version - The PDF version.
+ * @property {object} attributes - The PDF document attributes.
+ */
+
+/**
+ * Get a PDF file’s properties.
+ * @returns {PDFProperties} The PDF file properties.
+ * @param {string|Path} path - Path to the PDF document.
+ * @memberof PDFFile
+ * @instance
+ */
+function getProperties (path) {
+  const doc = _private.pdfDoc(path)
+  return {
+    encrypted: doc.isEncrypted,
+    locked: doc.isLocked,
+    copyable: doc.allowsCopying,
+    printable: doc.allowsPrinting,
+    version: `${doc.majorVersion}.${doc.minorVersion}`,
+    attributes: ObjC.deepUnwrap(doc.documentAttributes)
+  }
+}
+
+/**
+ * Get a PDF file’s page count.
+ * @returns {number} The page count, or `undefined` if the PDF could not be unlocked.
+ * @param {string|Path} path - Path to the PDF document.
+ * @param {object} [options] - Options for the reading operation.
+ * @param {string} [options.password] - Password to use to unlock the document.
+ * @param {boolean} [options.text=true] - Include text pages?
+ * @param {boolean} [options.objects=true] - Include object embed pages?
+ * @memberof PDFFile
+ * @instance
+ */
+function pageCount (path, options) {
+  if (options == null) options = {}
+  const countTxtPages = options.text == null ? true : options.text
+  const countObjPages = options.objects == null ? true : options.objects
+  if (!countTxtPages && !countObjPages) return 0
+
+  var doc = _private.pdfDoc(path)
+  if (countTxtPages === countObjPages) return Number(doc.pageCount)
+
+  if (!_private.unlock(doc, options.password)) return undefined
+  let count = 0
+  for (let i = 0; i < doc.pageCount; i++) {
+    const content = doc.pageAtIndex(i).string.js
+    // on macOS 10.12, object embed pages return a String content of '\u{FFFC}'
+    // on macOS 10.14, object embed pages return a String content of ' ' (one space)
+    if ((content === '\u{FFFC}' || content === ' ') !== countObjPages) continue
+    count++
+  }
+  return count
+}
