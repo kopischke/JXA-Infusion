@@ -15,9 +15,9 @@
  * var node = $.NSXMLNode.alloc.initWithKind($.NSXMLDocumentKind)
  * node.isKindOfClass($.NSXMLDocument.class)
  *
- * will return `true`; the NXMLNode constructor returns the NSXMLNode subclass
- * that matches the node’s `kind`. This kind of class juggling is impossible to
- * track across glorifified JXA wrappers – which is why we don’t even try.
+ * will return `true`, i.e. the NXMLNode constructor returns the NSXMLNode
+ * subclass that matches the node’s `kind`. This kind of class juggling is
+ * impossible to track across glorified JXA wrappers.
  * @summary An XML node (wraps NSXMLNode and subclasses).
  * @class XMLNode
  */
