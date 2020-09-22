@@ -77,7 +77,7 @@ class XMLNode {
       /**
       * Query an XMLNode using XPath.
       * @returns {XMLNode[]} The nodes conforming to the query.
-      * @param {string} query - The XPath query to apply.
+      * @param {string} query - The XPath query to evaluate.
       * @throws {Error} When the XPath query fails.
       * @memberof XMLNode
       * @instance
