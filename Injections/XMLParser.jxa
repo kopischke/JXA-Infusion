@@ -90,6 +90,24 @@ class XMLNode {
           return found.js.map(function (n) { return new XMLNode(n) })
         }
       },
+      /**
+      * Query an XMLNode using XQuery.
+      * @returns {XMLNode[]} The nodes conforming to the query.
+      * @param {string} query - The XQuery query to evaluate.
+      * @param {Object} constants - Constants to pass to the query.
+      * @throws {Error} When the XQuery query fails.
+      * @memberof XMLNode
+      * @instance
+      */
+      nodesForXQuery: {
+        value: function (query, constants) {
+          let error = $()
+          let consts = constants || null
+          let found = _NSXMLObject.objectsForXQueryConstantsError(query, consts, error)
+          if (found.isNil()) throw error.localizedDescription.js
+          return found.js.map(function (n) { return new XMLNode(n) })
+        }
+      },
       toString: {
         value: function (options) {
           let opts = Number(options || $.NSXMLNodeOptionsNone)
