@@ -11,11 +11,9 @@
  * NSXMLElement and NSXMLDocument are represented as specialised forms
  * of this object instead of as derived classes. This is the best way to model
  * the polymorphic constructors in Apple’s NSXML API. Just to show why,
- *
- * var node = $.NSXMLNode.alloc.initWithKind($.NSXMLDocumentKind)
- * node.isKindOfClass($.NSXMLDocument.class)
- *
- * will return `true`, i.e. the NXMLNode constructor returns the NSXMLNode
+ *   var node = $.NSXMLNode.alloc.initWithKind($.NSXMLDocumentKind)
+ *   node.isKindOfClass($.NSXMLDocument.class)
+ * will return `true`, i.e. NXMLNode constructors return the NSXMLNode
  * subclass that matches the node’s `kind`. This kind of class juggling is
  * impossible to track across glorified JXA wrappers.
  * @summary An XML node (wraps NSXMLNode and subclasses).
@@ -28,6 +26,7 @@ class XMLNode {
       node = from instanceof XMLNode ? from._raw : from
     }
 
+    /** @private */
     const _NSXMLObject = node || $.NSXMLNode.alloc.initWithKind($.NSXMLInvalidKind)
 
     // Common XMLNode interface. Mostly wrappers for the NSXMLNode interface,
@@ -77,7 +76,7 @@ class XMLNode {
       },
       /**
       * Query an XMLNode using XPath.
-      * @returns {XMLNode[]} The nodes comforming to the query.
+      * @returns {XMLNode[]} The nodes conforming to the query.
       * @param {string} query - The XPath query to apply.
       * @throws {Error} When the XPath query fails.
       * @memberof XMLNode
@@ -205,13 +204,13 @@ class XMLParser {
    * Create a document XMLNode from an XML string.
    * @returns {XMLNode}
    * @param {string} xml - The XML string to parse.
-   * @param {number} options - Bitmask of OR’ed NSXMLNodeOptions.
+   * @param {number} options - Bit mask of OR’ed NSXMLNodeOptions.
    * @throws When given invalid input or a a parsing error occurs.
    * @memberof XMLParser
    * @static
    */
   static fromXMLDocument (xml, options) {
-    let opts = Number(options || XMLParser.defaultOptions)
+    let opts = Number(options) || XMLParser.defaultOptions
     let input = xml != null ? xml : ''
     let error = $()
     let doc = $.NSXMLDocument.alloc.initWithXMLStringOptionsError(input, opts, error)
@@ -239,13 +238,13 @@ class XMLParser {
    * Create a document XMLNode from the contents of an XML file.
    * @returns {XMLNode}
    * @param {string|Path} path - The path to the XML file to parse.
-   * @param {number} options - Bitmask of OR’ed NSXMLNodeOptions.
+   * @param {number} options - Bit mask of OR’ed NSXMLNodeOptions.
    * @throws When given invalid input or a a parsing error occurs.
    * @memberof XMLParser
    * @static
    */
   static fromXMLFile (path, options) {
-    let opts = Number(options || XMLParser.defaultOptions)
+    let opts = Number(options) || XMLParser.defaultOptions
     let file = path != null ? $(path.toString()).stringByStandardizingPath : ''
     let url = $.NSURL.fileURLWithPath(file)
     let error = $()
