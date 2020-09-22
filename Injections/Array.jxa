@@ -1,0 +1,235 @@
+/**
+ * Array object extensions.
+ * @author Martin Kopischke <martin@kopischke.net>
+ * @version 2.0.0
+ * @license MIT
+ * @namespace Array
+ */
+
+/** @private */
+const minOSVersion = { majorVersion: 10, minorVersion: 12, patchVersion: 0 }
+if (!$.NSProcessInfo.processInfo.isOperatingSystemAtLeastVersion(minOSVersion)) {
+  const msg = `macOS ${Object.values(minOSVersion).join('.')} required`
+  throw new Error(msg)
+}
+
+/**
+ * Function that is called for every element of an array.
+ * @callback TestingCallback
+ * @param {*} element - The current element being processed in the array.
+ * @param {number} [index] - The index of the current element being processed in the array.
+ * @param {Array} [array] - The array the callback function was called upon.
+ */
+
+/**
+ * Get the last array item for which a callback returns true.
+ * @name findLast
+ * @function
+ * @returns {*} The value of the last element in the array that satisfies the
+ * provided testing function. Otherwise, `undefined` is returned.
+ * @param {TestingCallback} callback - Function to execute on each value in the array.
+ * @param {*} thisArg - Object to use as `this` inside `callback`.
+ * @throws {TypeError} When `callback` is not a function.
+ * @memberof Array
+ * @since 2.0.0
+ * @instance
+ */
+if (!Array.prototype.findLast) {
+  Object.defineProperty(Array.prototype, 'findLast', {
+    value: function (callback, thisArg) {
+      let idx
+      try {
+        idx = this.findLastIndex(callback, thisArg)
+      } catch (error) {
+        if (error instanceof TypeError) {
+          throw new TypeError(error.message.replace('findLastIndex', 'findLast'))
+        }
+      }
+      return idx === -1 ? undefined : this[idx]
+    }
+  })
+}
+
+/**
+ * Get the index of the last array item for which a callback returns true.
+ * @name findLastIndex
+ * @function
+ * @returns {*} The value of the last element in the array that satisfies the
+ * provided testing function. Otherwise, `-1` is returned.
+ * @param {TestingCallback} callback - Function to execute on each value in the array.
+ * @param {*} thisArg - Object to use as `this` inside `callback`.
+ * @throws {TypeError} When `callback` is not a function.
+ * @memberof Array
+ * @since 2.0.0
+ * @instance
+ */
+if (!Array.prototype.findLastIndext) {
+  Object.defineProperty(Array.prototype, 'findLastIndex', {
+    value: function (callback, thisArg) {
+      if (typeof callback !== 'function') {
+        throw new TypeError('Array.prototype.findLastIndex callback must be a function')
+      }
+      callback = callback.bind(thisArg != null ? thisArg : this)
+
+      for (let i = this.length - 1; i >= 0; i--) {
+        if (callback(this[i], i, this) === true) return i
+      }
+      return -1
+    }
+  })
+}
+/**
+ * Call a callback on every array value while it returns true.
+ * @name takeWhile
+ * @function
+ * @param {TestingCallback} callback - Function to execute on each value in the array.
+ * @param {*} thisArg - Object to use as `this` inside `callback`.
+ * @throws {TypeError} When `callback` is not a function.
+ * @memberof Array
+ * @instance
+ */
+if (!Array.prototype.takeWhile) {
+  Object.defineProperty(Array.prototype, 'takeWhile', {
+    value: function (callback, thisArg) {
+      if (typeof callback !== 'function') {
+        throw new TypeError('Array.prototype.takeWhile callback must be a function')
+      }
+      callback = callback.bind(thisArg != null ? thisArg : this)
+
+      for (let i = 0; i < this.length; i++) {
+        if (!callback(this[i], i, this)) break
+      }
+    }
+  })
+}
+
+/**
+ * Remove all `undefined` and `null` values from an array _in-place_.
+ * @name compact
+ * @function
+ * @returns {Array} The compacted original array.
+ * @memberof Array
+ * @instance
+ */
+if (!Array.prototype.compact) {
+  Object.defineProperty(Array.prototype, 'compact', {
+    value: function () {
+      var idx = 0
+      while (idx < this.length) {
+        if (this[idx] == null) {
+          this.splice(idx, 1)
+        } else {
+          idx++
+        }
+      }
+      return this
+    }
+  })
+}
+
+/**
+ * Get the common item subset of two arrays.
+ * @name intersection
+ * @function
+ * @returns {Array} The common subset of values.
+ * @memberof Array
+ * @instance
+ */
+if (!Array.prototype.intersection) {
+  Object.defineProperty(Array.prototype, 'intersection', {
+    value: function (other) {
+      return this.filter(v => other.includes(v))
+    }
+  })
+}
+
+/**
+ * Group array items by the value returned by a callback.
+ * @name groupBy
+ * @function
+ * @returns {object.<*, Array>} The grouped array items.
+ * @param {TestingCallback} callback - Function to execute on each value in the array.
+ * @param {*} thisArg - Object to use as `this` inside `callback`.
+ * @throws {TypeError} When `callback` is not a function.
+ * @memberof Array
+ * @instance
+ */
+if (!Array.prototype.groupBy) {
+  Object.defineProperty(Array.prototype, 'groupBy', {
+    value: function (callback, thisArg) {
+      if (typeof callback !== 'function') {
+        throw new TypeError('Array.prototype.takeWhile callback must be a function')
+      }
+      callback = callback.bind(thisArg != null ? thisArg : this)
+
+      const grouped = {}
+      this.forEach((v, i, ary) => {
+        var index = callback(v, i, ary)
+        if (index != null) {
+          if (grouped[index] === undefined) grouped[index] = []
+          grouped[index].push(v)
+        }
+      })
+      return grouped
+    }
+  })
+}
+
+/**
+ * Hoist sub-array items into the main Array _in-place_.
+ * @name flatten
+ * @function
+ * @returns {Array} The flattened original array.
+ * @memberof Array
+ * @instance
+ */
+if (!Array.prototype.flatten) {
+  Object.defineProperty(Array.prototype, 'flatten', {
+    value: function () {
+      this.forEach((v, i) => {
+        if (Array.isArray(v)) {
+          var spliceArgs = [i, 1]
+          Array.prototype.splice.apply(this, spliceArgs.concat(v))
+        }
+      }, this)
+      return this
+    }
+  })
+}
+
+/**
+ * Function to determine if an array element is unique.
+ * @callback DeduplicatingCallback
+ * @returns {boolean} Is the value unique?
+ * @param {Array} uniqueValues - The current array of unique values.
+ * @param {*} element - The current element being processed in the source array.
+ */
+
+/**
+ * De-duplicate Array contents.
+ * By default, this compares contents using `Array.prototype.includes`.
+ * @name unique
+ * @function
+ * @returns {object.<*, Array>} The grouped array items.
+ * @param {DeduplicatingCallback} callback - Function to execute on each value in the array.
+ * @param {*} thisArg - Object to use as `this` inside `callback`.
+ * @throws {TypeError} When `callback` is not a function.
+ * @memberof Array
+ * @instance
+ */
+if (!Array.prototype.unique) {
+  Object.defineProperty(Array.prototype, 'unique', {
+    value: function (callback, thisArg) {
+      if (typeof callback !== 'function') {
+        throw new TypeError('Array.prototype.takeWhile callback must be a function')
+      }
+      callback = callback.bind(thisArg != null ? thisArg : this)
+
+      const isUnique = callback || ((ary, value) => ary.includes(value))
+      return this.reduce((acc, v) => {
+        if (!isUnique(acc, v)) { acc.push(v) }
+        return acc
+      }, [])
+    }
+  })
+}
