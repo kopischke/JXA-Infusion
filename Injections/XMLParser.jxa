@@ -40,21 +40,21 @@ function XMLNode (from) {
    * @instance
    * @private
    */
-  Object.defineProperty(this, '_raw', { get: function () { return _NSXMLObject }})
+  Object.defineProperty(this, '_raw', { get: function () { return _NSXMLObject } })
 }
 
 // Common XMLNode interface. Mostly wrappers for the NSXMLNode interface,
 // with a bit of `Node` semantics thrown in for convenience.
 Object.defineProperties(XMLNode.prototype, {
-  index: { get: function () { return Number(this._raw.index) }},
-  kind:  { get: function () { return Number(this._raw.kind) }},
-  level: { get: function () { return Number(this._raw.level) }},
-  name:  { get: function () { return this._raw.name.js }},
+  index: { get: function () { return Number(this._raw.index) } },
+  kind:  { get: function () { return Number(this._raw.kind) } },
+  level: { get: function () { return Number(this._raw.level) } },
+  name:  { get: function () { return this._raw.name.js } },
   stringValue: {
-    get: function () { return this._raw.stringValue.js},
+    get: function () { return this._raw.stringValue.js },
     set: function (string, resolve) {
-      let str = string.toString()
-      let res = resolve == true
+      const str = string.toString()
+      const res = resolve === true
       this._raw.setStringValueResolvingEntities(str, res)
     }
   },
@@ -64,20 +64,20 @@ Object.defineProperties(XMLNode.prototype, {
   },
   rootDocument: {
     get: function () {
-      if (this.kind == S.NSXMLDocumentKind) return this
-      let root = this._raw.rootDocument
+      if (this.kind === $.NSXMLDocumentKind) return this
+      const root = this._raw.rootDocument
       return root.isNil() ? undefined : new XMLNode(root)
     }
   },
   parent: {
     get: function () {
-      let parent = this._raw.parent
+      const parent = this._raw.parent
       return parent.isNil() ? undefined : new XMLNode(parent)
     }
   },
   detach: {
     value: function () {
-      let root = this._raw.rootDocument
+      const root = this._raw.rootDocument
       if (!root.isNil()) this._raw.detach
     }
   },
@@ -92,9 +92,9 @@ Object.defineProperties(XMLNode.prototype, {
   */
   nodesForXPath: {
     value: function (query) {
-      let error = $()
-      let found = this._raw.nodesForXPathError(query, error)
-      if (found.isNil()) throw error.localizedDescription.js
+      var error = $()
+      const found = this._raw.nodesForXPathError(query, error)
+      if (found.isNil()) throw new Error(error.localizedDescription.js)
       return found.js.map(function (n) { return new XMLNode(n) })
     }
   },
@@ -110,22 +110,22 @@ Object.defineProperties(XMLNode.prototype, {
   */
   nodesForXQuery: {
     value: function (query, constants) {
-      let error = $()
-      let consts = constants || null
-      let found = this._raw.objectsForXQueryConstantsError(query, consts, error)
-      if (found.isNil()) throw error.localizedDescription.js
+      var error = $()
+      const consts = constants || null
+      const found = this._raw.objectsForXQueryConstantsError(query, consts, error)
+      if (found.isNil()) throw new Error(error.localizedDescription.js)
       return found.js.map(function (n) { return new XMLNode(n) })
     }
   },
   toString: {
     value: function (options) {
-      let opts = Number(options || $.NSXMLNodeOptionsNone)
+      const opts = Number(options || $.NSXMLNodeOptionsNone)
       return this._raw.XMLStringWithOptions(opts).js
     }
   },
   toCanonicalString: {
     value: function (withComments) {
-      let comments = withComments != null
+      const comments = withComments != null
       return this._raw.canonicalXMLStringPreservingComments(comments).js
     }
   },
@@ -143,33 +143,33 @@ Object.defineProperties(XMLNode.prototype, {
   },
   isSameNode: {
     value: function (other) {
-      let thisNode = this._raw
-      let thisRoot = this._raw.rootDocument
-      let otherNode = other._raw
-      let otherRoot = other._raw.rootDocument
+      const thisNode = this._raw
+      const thisRoot = this._raw.rootDocument
+      const otherNode = other._raw
+      const otherRoot = other._raw.rootDocument
       if (
-        thisNode.index != otherNode.index ||
-        thisNode.kind  != otherNode.kind  ||
-        thisNode.level != otherNode.level ||
-        thisNode.name  != otherNode.name  ||
-        thisRoot.isNil() != otherRoot.isNil()
+        thisNode.index !== otherNode.index ||
+        thisNode.kind  !== otherNode.kind  ||
+        thisNode.level !== otherNode.level ||
+        thisNode.name  !== otherNode.name  ||
+        thisRoot.isNil() !== otherRoot.isNil()
       ) return false
-      let node = thisNode.isEqual(otherNode)
-      let root = thisRoot.isNil() ? thisRoot.isEqual(otherRoot) : true
+      const node = thisNode.isEqual(otherNode)
+      const root = thisRoot.isNil() ? thisRoot.isEqual(otherRoot) : true
       return node && root
     }
   }
 })
 
 // Specialised element node interface.
-if (node.kind == $.NSXMLElementKind) {
+if (this._raw.kind === $.NSXMLElementKind) {
   Object.defineProperties(XMLNode.prototype, {
     // TODO: implement element node interface
   })
 }
 
 // Specialised document node interface.
-if (node.kind == $.NSXMLDocumentKind) {
+if (this._raw.kind === $.NSXMLDocumentKind) {
   Object.defineProperties(XMLNode.prototype, {
     encoding: {
       get: function () { return this._raw.characterEncoding.js },
@@ -177,7 +177,7 @@ if (node.kind == $.NSXMLDocumentKind) {
     },
     contentKind: {
       get: function () { return this._raw.documentContentKind.js },
-      set: function (k) { this._raw.documentContentKind(d) = k.toString() }
+      set: function (k) { this._raw.documentContentKind = k.toString() }
     },
     DTD: {
       get: function () { return this._raw.DTD },
@@ -185,7 +185,7 @@ if (node.kind == $.NSXMLDocumentKind) {
     },
     standalone: {
       get: function () { return this._raw.isStandalone.js },
-      set: function (b) { this._raw.standalone(b == true) }
+      set: function (b) { this._raw.standalone(b === true) }
     },
     MIMEType: {
       get: function () { return this._raw.MIMEType.js },
@@ -199,21 +199,21 @@ if (node.kind == $.NSXMLDocumentKind) {
     rootElement: {
       get: function () { return new XMLNode(this._raw.rootElement) },
       set: function (e) {
-        let elem = e instanceof XMLNode ? elem._raw : elem
+        const elem = e instanceof XMLNode ? e._raw : e
         this._raw.setRootElement(elem)
       }
     },
     validate: {
       value: function (quiet) {
-        let error = $()
-        let valid = this._raw.validateAndReturnError
-        if (!quiet && !valid) throw error.localizedDescription.js
+        var error = $()
+        const valid = this._raw.validateAndReturnError(error)
+        if (!quiet && !valid) throw new Error(error.localizedDescription.js)
         return valid
       }
     },
     toData: {
       value: function (options) {
-        let opts = Number(options || $.NSXMLPreserveAll)
+        const opts = Number(options || $.NSXMLPreserveAll)
         return this._raw.XMLDataWithOptions(opts)
       }
     }
@@ -231,7 +231,7 @@ const XMLParser = {
    * @memberof XMLParser
    * @static
    */
-  defaultOptions = Number($.NSXMLNodeOptionsNone),
+  defaultOptions: Number($.NSXMLNodeOptionsNone),
   /**
    * Create a document XMLNode from an XML string.
    * @function fromXMLDocument
@@ -242,12 +242,12 @@ const XMLParser = {
    * @memberof XMLParser
    * @static
    */
-   fromXMLDocument: function (xml, options) {
-    let opts = Number(options) || XMLParser.defaultOptions
-    let input = xml != null ? xml : ''
-    let error = $()
-    let doc = $.NSXMLDocument.alloc.initWithXMLStringOptionsError(input, opts, error)
-    if (doc.isNil()) throw error.localizedDescription.js
+  fromXMLDocument: function (xml, options) {
+    const opts = Number(options) || XMLParser.defaultOptions
+    const input = xml != null ? xml : ''
+    var error = $()
+    const doc = $.NSXMLDocument.alloc.initWithXMLStringOptionsError(input, opts, error)
+    if (doc.isNil()) throw new Error(error.localizedDescription.js)
     return new XMLNode(doc)
   },
   /**
@@ -259,11 +259,11 @@ const XMLParser = {
    * @memberof XMLParser
    * @static
    */
-  fromXMLFragment = function (xml) {
-    let input = xml != null ? xml : ''
-    let error = $()
-    let elem = $.NSXMLElement.alloc.initWithXMLStringError(input, error)
-    if (doc.isNil()) throw error.localizedDescription.js
+  fromXMLFragment: function (xml) {
+    const input = xml != null ? xml : ''
+    var error = $()
+    const elem = $.NSXMLElement.alloc.initWithXMLStringError(input, error)
+    if (elem.isNil()) throw new Error(error.localizedDescription.js)
     return new XMLNode(elem)
   },
   /**
@@ -276,13 +276,13 @@ const XMLParser = {
    * @memberof XMLParser
    * @static
    */
-  fromXMLFile = function (path, options) {
-    let opts = Number(options) || XMLParser.defaultOptions
-    let file = path != null ? $(path.toString()).stringByStandardizingPath : ''
-    let url = $.NSURL.fileURLWithPath(file)
-    let error = $()
-    let doc = $.NSXMLDocument.alloc.initWithContentsOfURLOptionsError(url, opts, error)
-    if (doc.isNil()) throw error.localizedDescription.js
+  fromXMLFile: function (path, options) {
+    const opts = Number(options) || XMLParser.defaultOptions
+    const file = path != null ? $(path.toString()).stringByStandardizingPath : ''
+    const url = $.NSURL.fileURLWithPath(file)
+    var error = $()
+    const doc = $.NSXMLDocument.alloc.initWithContentsOfURLOptionsError(url, opts, error)
+    if (doc.isNil()) throw new Error(error.localizedDescription.js)
     return new XMLNode(doc)
   }
 }.freeze()
