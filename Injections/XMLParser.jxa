@@ -1,5 +1,8 @@
 /**
  * macOS native XML tree parsing functionality.
+ * Because the System Events XML suite is painfully slow and limited,
+ * and raw ObjC bridge code is simply painful.
+ * @summary macOS native XML tree parsing functionality.
  * @author Martin Kopischke <martin@kopischke.net>
  * @version 1.0.0
  * @license MIT
@@ -11,8 +14,12 @@
  * NSXMLElement and NSXMLDocument are represented as specialised forms
  * of this object instead of as derived classes. This is the best way to model
  * the polymorphic constructors in Apple’s NSXML API. Just to show why,
- *   var node = $.NSXMLNode.alloc.initWithKind($.NSXMLDocumentKind)
- *   node.isKindOfClass($.NSXMLDocument.class)
+ *
+ * ```js
+ * var node = $.NSXMLNode.alloc.initWithKind($.NSXMLDocumentKind)
+ * node.isKindOfClass($.NSXMLDocument.class)
+ * ```
+ *
  * will return `true`, i.e. NXMLNode constructors return the NSXMLNode
  * subclass that matches the node’s `kind`. This kind of class juggling is
  * impossible to track across glorified JXA wrappers.
@@ -28,9 +35,10 @@ function XMLNode (from) {
 
   /**
    * Accessor for the underlying NSXMLNode object.
-   * @private {NSXMLNode}
+   * @member {NSXMLNode} _raw
    * @memberof XMLNode
    * @instance
+   * @private
    */
   Object.defineProperty(this, '_raw', { get: function () { return _NSXMLObject }})
 }
@@ -75,6 +83,7 @@ Object.defineProperties(XMLNode.prototype, {
   },
   /**
   * Query an XMLNode using XPath.
+  * @function nodesForXPath
   * @returns {XMLNode[]} The nodes conforming to the query.
   * @param {string} query - The XPath query to evaluate.
   * @throws {Error} When the XPath query fails.
@@ -91,6 +100,7 @@ Object.defineProperties(XMLNode.prototype, {
   },
   /**
   * Query an XMLNode using XQuery.
+  * @function nodesForXQuery
   * @returns {XMLNode[]} The nodes conforming to the query.
   * @param {string} query - The XQuery query to evaluate.
   * @param {Object} constants - Constants to pass to the query.
@@ -217,13 +227,14 @@ if (node.kind == $.NSXMLDocumentKind) {
 const XMLParser = {
   /**
    * Default NSXMLNodeOptions for parsing document XML.
-   * @constant {number}
+   * @constant {number} defaultOptions
    * @memberof XMLParser
    * @static
    */
   defaultOptions = Number($.NSXMLNodeOptionsNone),
   /**
    * Create a document XMLNode from an XML string.
+   * @function fromXMLDocument
    * @returns {XMLNode}
    * @param {string} xml - The XML string to parse.
    * @param {number} options - Bit mask of OR’ed NSXMLNodeOptions.
@@ -241,6 +252,7 @@ const XMLParser = {
   },
   /**
    * Create an element XMLNode from an XML string.
+   * @function fromXMLFragment
    * @returns {XMLNode}
    * @param {string} xml - The XML string to parse.
    * @throws When given invalid input or a a parsing error occurs.
@@ -256,6 +268,7 @@ const XMLParser = {
   },
   /**
    * Create a document XMLNode from the contents of an XML file.
+   * @function fromXMLFile
    * @returns {XMLNode}
    * @param {string|Path} path - The path to the XML file to parse.
    * @param {number} options - Bit mask of OR’ed NSXMLNodeOptions.
