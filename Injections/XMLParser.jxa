@@ -21,13 +21,11 @@
  */
 class XMLNode {
   constructor (from) {
-    let node
-    if (from != null) {
-      node = from instanceof XMLNode ? from._raw : from
-    }
+  let node = from instanceof XMLNode ? from._raw : from
+  if (node == null) node = $.NSXMLNode.alloc.initWithKind($.NSXMLInvalidKind)
 
-    /** @private */
-    const _NSXMLObject = node || $.NSXMLNode.alloc.initWithKind($.NSXMLInvalidKind)
+  /** @private */
+  const _NSXMLObject = node
 
     // Common XMLNode interface. Mostly wrappers for the NSXMLNode interface,
     // with a bit of `Node` semantics thrown in for convenience.
