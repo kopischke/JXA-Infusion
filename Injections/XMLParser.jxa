@@ -1,12 +1,12 @@
 /**
- * macOS native XML tree parsing functionality.
+ * **macOS native XML tree parsing functionality.**
+ *
  * Because the System Events XML suite is painfully slow and limited,
  * and raw ObjC bridge code is simply painful.
- * @summary macOS native XML tree parsing functionality.
  * @author Martin Kopischke <martin@kopischke.net>
  * @version 1.0.0
  * @license MIT
- * @module
+ * @module XMLParser
  */
 
 /**
@@ -23,7 +23,6 @@
  * will return `true`, i.e. NXMLNode constructors return the NSXMLNode
  * subclass that matches the node’s `kind`. This kind of class juggling is
  * impossible to track across glorified JXA wrappers.
- * @summary An XML node (wraps NSXMLNode and subclasses).
  * @class XMLNode
  */
 function XMLNode (from) {
@@ -36,7 +35,6 @@ function XMLNode (from) {
   /**
    * Accessor for the underlying NSXMLNode object.
    * @member {NSXMLNode} _raw
-   * @memberof XMLNode
    * @instance
    * @private
    */
@@ -82,14 +80,14 @@ Object.defineProperties(XMLNode.prototype, {
     }
   },
   /**
-  * Query an XMLNode using XPath.
-  * @function nodesForXPath
-  * @returns {XMLNode[]} The nodes conforming to the query.
-  * @param {string} query - The XPath query to evaluate.
-  * @throws {Error} When the XPath query fails.
-  * @memberof XMLNode
-  * @instance
-  */
+   * Query an XMLNode using XPath.
+   * @function nodesForXPath
+   * @returns {XMLNode[]} The nodes conforming to the query.
+   * @param {string} query - The XPath query to evaluate.
+   * @throws When the XPath query fails.
+   * @memberof module:XMLParser~XMLNode
+   * @instance
+   */
   nodesForXPath: {
     value: function (query) {
       var error = $()
@@ -103,9 +101,9 @@ Object.defineProperties(XMLNode.prototype, {
   * @function nodesForXQuery
   * @returns {XMLNode[]} The nodes conforming to the query.
   * @param {string} query - The XQuery query to evaluate.
-  * @param {Object} constants - Constants to pass to the query.
-  * @throws {Error} When the XQuery query fails.
-  * @memberof XMLNode
+  * @param {Object} [constants] - Constants to pass to the query.
+  * @throws When the XQuery query fails.
+  * @memberof module:XMLParser~XMLNode
   * @instance
   */
   nodesForXQuery: {
@@ -220,15 +218,10 @@ if (this._raw.kind === $.NSXMLDocumentKind) {
   })
 }
 
-/**
- * Create XMLNode objects from textual XML input.
- * @namespace XMLParser
- */
 const XMLParser = {
   /**
    * Default NSXMLNodeOptions for parsing document XML.
    * @constant {number} defaultOptions
-   * @memberof XMLParser
    * @static
    */
   defaultOptions: Number($.NSXMLNodeOptionsNone),
@@ -239,7 +232,6 @@ const XMLParser = {
    * @param {string} xml - The XML string to parse.
    * @param {number} options - Bit mask of OR’ed NSXMLNodeOptions.
    * @throws When given invalid input or a a parsing error occurs.
-   * @memberof XMLParser
    * @static
    */
   fromXMLDocument: function (xml, options) {
@@ -256,7 +248,6 @@ const XMLParser = {
    * @returns {XMLNode}
    * @param {string} xml - The XML string to parse.
    * @throws When given invalid input or a a parsing error occurs.
-   * @memberof XMLParser
    * @static
    */
   fromXMLFragment: function (xml) {
@@ -273,7 +264,6 @@ const XMLParser = {
    * @param {string|Path} path - The path to the XML file to parse.
    * @param {number} options - Bit mask of OR’ed NSXMLNodeOptions.
    * @throws When given invalid input or a a parsing error occurs.
-   * @memberof XMLParser
    * @static
    */
   fromXMLFile: function (path, options) {
