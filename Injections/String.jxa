@@ -1,0 +1,170 @@
+/**
+ * String object extensions.
+ * @author Martin Kopischke <martin@kopischke.net>
+ * @version 1.4.0
+ * @license MIT
+ * @namespace String
+ */
+
+/** @private */
+const minOSVersion = { majorVersion: 10, minorVersion: 12, patchVersion: 0 }
+if (!$.NSProcessInfo.processInfo.isOperatingSystemAtLeastVersion(minOSVersion)) {
+  const msg = `macOS ${Object.values(minOSVersion).join('.')} required`
+  throw new Error(msg)
+}
+
+/**
+ * JXA implementation of AppleScript's `quoted form of`.
+ * Credits to {@link http://stackoverflow.com/a/33050945/990363}.
+ * @name toQuotedForm
+ * @function
+ * @returns {string} The quoted form  of the string, suitable for shell usage.
+ * @memberof String
+ * @instance
+ */
+if (!String.prototype.toQuotedForm) {
+  Object.defineProperty(String.prototype, 'toQuotedForm', {
+    value: function () {
+      return `'${this.replace("'", "'\\''")}'`
+    }
+  })
+}
+
+/**
+ * Escape the String for usage as a literal in a RegExp.
+ * Credits to {@link http://stackoverflow.com/a/6969486/990363}.
+ * @name toRegExpLiteral
+ * @function
+ * @returns {string} The escaped string, suitable for usage as a RegExp literal.
+ * @memberof String
+ * @instance
+ */
+if (!String.prototype.toRegExpLiteral) {
+  Object.defineProperty(String.prototype, 'toRegExpLiteral', {
+    value: function () {
+      return this.replace(/[-[\]/{}()*+?.\\^$|]/g, '\\$&')
+    }
+  })
+}
+
+/**
+ * An object that ObjC functions accept as an NSRange equivalent.
+ * @typedef {object} NSRange
+ * @property {number} location - The index in the parent string the range starts at.
+ * @property {number} length - The extent of the range (in UTF-16 characters).
+ */
+
+/**
+ * Get an NSRange object matching the String.
+ * @name toNSRange
+ * @function
+ * @returns {NSRange}
+ * @memberof String
+ * @instance
+ */
+if (!String.prototype.toNSRange) {
+  Object.defineProperty(String.prototype, 'toNSRange', {
+    value: function () {
+      return { location: 0, length: $(this.valueOf()).length }
+    }
+  })
+}
+
+/**
+ * Capitalise a string.
+ * To quote the `NSString.capitalizedString` documentation: A capitalised string
+ * is a string with the first character in each word changed to its corresponding
+ * uppercase value, and all remaining characters set to their corresponding
+ * lowercase values. A word is any sequence of characters delimited by spaces,
+ * tabs, or line terminators. Some common word delimiting punctuation isn't considered,
+ * so this may not generally produce the desired results for multiword strings.
+ * @name toCapitalizedForm
+ * @function
+ * @returns {string}
+ * @memberof String
+ * @instance
+ */
+if (!String.prototype.toCapitalizedForm) {
+  Object.defineProperty(String.prototype, 'toCapitalizedForm', {
+    value: function () {
+      return $(this.valueOf).capitalizedString.js
+    }
+  })
+}
+
+/**
+ * Capitalise a string, according to any locale-specific case mappings.
+ * @name toLocaleCapitalizedForm
+ * @function
+ * @returns {string}
+ * @param {string|string[]} [locale] - The locale(s) to be used to convert to
+ * capitalised form. If multiple locales are given in an `Array`, the best
+ * available locale is used. The default locale is the user's current locale.
+ * Note locale comparison with available locales is strict, so make sure you
+ * use the canonical, properly cased form of the locale identifier (`xx[-XX]`).
+ * @see {@link String#toCapitalizedForm} for caveats about capitalisation.
+ * @see {@link https://tc39.es/ecma402/#sec-bestavailablelocale} for details
+ * how the best locale is found when multiple are supplied.
+ * @throws {TypeError} When a non-string locale argument is passed.
+ * @throws {RangeError} When an invalid locale specifier is passed.
+ * @memberof String
+ * @instance
+ */
+if (!String.prototype.toLocaleCapitalizedForm) {
+  Object.defineProperty(String.prototype, 'toLocaleCapitalizedForm', {
+    value: function (locale) {
+      const findBestLocale = locales => {
+        if (locales == null) return $.NSLocale.localeWithLocaleIdentifier(locale)
+        locales = [].concat(locales)
+
+        // Emulate `string.prototype.toLocale*Case`'s specified behaviour.
+        if (locales.find(loc => typeof loc !== 'string') !== undefined) {
+          throw new TypeError('The locale argument(s) need to be of type string.')
+        }
+        locales = locales.map(loc => loc.replace('-', '_')) // macOS locales use underscores
+
+        // Checking for an exact match with a specified locale.
+        let available = $.NSLocale.availableLocaleIdentifiers
+        let match = $(locales).firstObjectCommonWithArray(available)
+        if (!match.isNil()) return match
+
+        // Checking for an exact match with the short form of a specified locale.
+        locales = locales.map(loc => loc.split('_')[0])
+        match = available.firstObjectCommonWithArray(locales)
+        if (!match.isNil()) return match
+
+        // Checking for sub-match with the short form of a specified locale.
+        available = ObjC.deepUnwrap(available)
+        for (let i = 0; i < locales.length; i++) {
+          match = available.find(loc => loc.startsWith(`${locales[i]}_`))
+          if (match !== undefined) return match
+        }
+
+        // Emulate `string.prototype.toLocale*Case`'s specified behaviour.
+        throw new RangeError('No valid locale(s) found in locale argument.')
+      }
+
+      locale = findBestLocale(locale)
+      return $(this.valueOf).capitalizedStringWithLocale(locale).js
+    }
+  })
+}
+
+/**
+ * Transform a string.
+ * @name transform
+ * @function
+ * @returns {string}
+ * @param {string} transform - The NSStringTransform to apply.
+ * @param {boolean} [reverse=false] - Apply the transform in reverse direction?
+ * @memberof String
+ * @instance
+ */
+if (!String.prototype.transform) {
+  Object.defineProperty(String.prototype, 'transform', {
+    value: function (transform, reverse) {
+      reverse = reverse != null ? reverse === true : false
+      return $(this.valueOf).stringByApplyingTransformReverse(transform, reverse).js
+    }
+  })
+}
