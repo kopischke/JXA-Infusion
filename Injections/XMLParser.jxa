@@ -9,7 +9,7 @@
  * @namespace XMLParser
  */
 
-const XMLDTDProperties = {
+const XMLElementProperties = {
   // TODO: implement element node interface
 }
 
@@ -95,7 +95,7 @@ function XMLNode (from) {
 
   // Specialised element node interface.
   if (_NSXMLObject.kind === $.NSXMLElementKind) {
-    Object.defineProperties(XMLNode.prototype, XMLDTDProperties)
+    Object.defineProperties(XMLNode.prototype, XMLElementProperties)
   }
 
   // Specialised document node interface.
