@@ -1,0 +1,507 @@
+/**
+ * **Path object extensions.**
+ *
+ * Because JXA’s `Path` object is a missed opportunity as long
+ * as it is just a dumb equivalent to the AppleScript `alias`.
+ * This functionality is in the spirit of the Ruby `Pathname` library,
+ * i.e. Path object manipulation independently from the actual existence
+ * of the designated object in the file system.
+ * @author Martin Kopischke <martin@kopischke.net>
+ * @version 5.1.0
+ * @license MIT
+ * @namespace Path
+ */
+
+/** @private */
+const minOSVersion = { majorVersion: 10, minorVersion: 12, patchVersion: 0 }
+if (!$.NSProcessInfo.processInfo.isOperatingSystemAtLeastVersion(minOSVersion)) {
+  const msg = `macOS ${Object.values(minOSVersion).join('.')} required`
+  throw new Error(msg)
+}
+
+/**
+ * Create a Path from a path string.
+ * Unlike `Path(string)`, this expands the home directory indicator `~`.
+ * @name fromString
+ * @function
+ * @returns {Path}
+ * @param {string} string - The path.
+ * @memberof Path
+ * @static
+ */
+if (!Path.fromString) {
+  Path.fromString = function (string) {
+    const pathString = $(string).stringByExpandingTildeInPath
+    return Path(pathString.js)
+  }
+}
+
+/**
+ * Create a Path from an array of path part strings.
+ * @name fromArray
+ * @function
+ * @returns {Path}
+ * @param {string[]} parts - The path component parts.
+ * @memberof Path
+ * @static
+ */
+if (!Path.fromArray) {
+  Path.fromArray = function (parts) {
+    const pathURL = $.NSURL.fileURLWithPathComponents(parts)
+    return Path.fromNSURL(pathURL)
+  }
+}
+
+/**
+ * Create a Path from a file:// URL string.
+ * @name fromFileURL
+ * @function
+ * @returns {?Path}
+ * @param {string} url - The path URL.
+ * @memberof Path
+ * @static
+ */
+if (!Path.fromFileURL) {
+  Path.fromFileURL = function (url) {
+    // Some invalid input causes a terminal exception
+    try {
+      return Path.fromNSURL($.NSURL.URLWithString(url))
+    } catch (error) {
+      return undefined
+    }
+  }
+}
+
+/**
+ * Create a Path from an NSURL Object.
+ * @name fromNSURL
+ * @function
+ * @returns {?Path}
+ * @param {object} url - The NSURL to convert.
+ * @memberof Path
+ * @static
+ */
+if (!Path.fromNSURL) {
+  Path.fromNSURL = function (url) {
+    return url.fileURL ? Path(url.path.js) : undefined
+  }
+}
+
+/**
+ * Create a Path from an an NSData bookmark.
+ * @name fromBookmark
+ * @function
+ * @returns {Path}
+ * @param {object} data - The NSData bookmark.
+ * @throws {Error} When resolving the bookmark fails.
+ * @memberof Path
+ * @static
+ */
+if (!Path.fromBookmark) {
+  Path.fromBookmark = function (data) {
+    var error = $()
+    var stale = Ref()
+    const url = $.NSURL.URLByResolvingBookmarkDataOptionsRelativeToURLBookmarkDataIsStaleError(
+      data, $.NSURLBookmarkResolutionWithoutUI, $(), stale, error
+    )
+    if (url.isNil()) throw new Error(error.localizedDescription.js)
+    return Path.fromNSURL(url)
+  }
+}
+
+/**
+ * Split a Path into an array of part strings.
+ * @name toArray
+ * @function
+ * @returns {string[]}
+ * @memberof Path
+ * @instance
+ */
+if (!Path.prototype.toArray) {
+  Object.defineProperty(Path.prototype, 'toArray', {
+    value: function () {
+      const pathURL = this.toNSURL()
+      return ObjC.deepUnwrap(pathURL.pathComponents)
+    }
+  })
+}
+
+/**
+ * Convert a Path into an NSURL object.
+ * @name toNSURL
+ * @function
+ * @returns {object} The NSURL matching the path.
+ * @memberof Path
+ * @instance
+ */
+if (!Path.prototype.toNSURL) {
+  Object.defineProperty(Path.prototype, 'toNSURL', {
+    value: function () {
+      return $.NSURL.fileURLWithPath(this.toString())
+    }
+  })
+}
+
+/**
+ * Convert a Path to its String representation when serialising to JSON.
+ * @name toJSON
+ * @function
+ * @returns {string}
+ * @memberof Path
+ * @instance
+ */
+if (!Path.prototype.toJSON) {
+  Object.defineProperty(Path.prototype, 'toJSON', {
+    value: function () {
+      return this.toString()
+    }
+  })
+}
+
+/**
+ * Check if the Path points to the same effective location as some other path.
+ * Paths are standardised before comparison, but not normalised (as that would
+ * exclude comparison of invalid paths).
+ * @name equals
+ * @function
+ * @returns {boolean}
+ * @param {string|Path} otherPath - The path to compare locations with.
+ * @memberof Path
+ * @instance
+ */
+if (!Path.prototype.equals) {
+  Object.defineProperty(Path.prototype, 'equals', {
+    value: function (otherPath) {
+      const thisPathStr = this.standardize().toString()
+      const otherPathStr = Path(otherPath.toString()).standardize().toString()
+      return thisPathStr === otherPathStr
+    }
+  })
+}
+
+/**
+ * Check if a Path points to a file system object.
+ * @name exists
+ * @property {boolean} Does the path point to a file system object?
+ * @readonly
+ * @memberof Path
+ * @instance
+ * @since 5.0.0
+ */
+if (!Path.prototype.exists) {
+  Object.defineProperty(Path.prototype, 'exists', {
+    get: function () {
+      const manager = $.NSFileManager.defaultManager
+      return manager.fileExistsAtPath(this.toString())
+    }
+  })
+}
+
+/**
+ * Check if a Path points to a volume.
+ * @name existsAsVolume
+ * @property {boolean} Does the path point to a volume?
+ * @readonly
+ * @memberof Path
+ * @instance
+ * @since 5.0.0
+ */
+
+/**
+ * Check if a Path points to a directory.
+ * @name existsAsDirectory
+ * @property {boolean} Does the path point to a directory?
+ * @readonly
+ * @memberof Path
+ * @instance
+ * @since 5.0.0
+ */
+
+/**
+ * Check if a Path points to a (macOS) package.
+ * @name existsAsPackage
+ * @property {boolean} Does the path point to a package?
+ * @readonly
+ * @memberof Path
+ * @instance
+ * @since 5.0.0
+ */
+
+/**
+ * Check if a Path points to a simple file.
+ * @name existsAsFile
+ * @property {boolean} Does the path point to a file?
+ * @readonly
+ * @memberof Path
+ * @instance
+ * @since 5.0.0
+ */
+
+/**
+ * Check if a Path points to a symbolic link.
+ * @name existsAsSymlink
+ * @property {boolean} Does the path point to a symlink?
+ * @readonly
+ * @memberof Path
+ * @instance
+ * @since 5.0.0
+ */
+
+/**
+ * Check if a Path points to a Finder alias.
+ * @name existsAsAlias
+ * @property {boolean} Does the path point to an alias?
+ * @readonly
+ * @memberof Path
+ * @since 5.0.0
+ * @instance
+ */
+
+(function () {
+  /**
+   * Get a designated file system property of a Path.
+   * @name _resourceValueGetter
+   * @function
+   * @returns {*} The designated property.
+   * @param {string} forKey - The NSURL*Key to check.
+   * @private
+   */
+  const _resourceValueGetter = function (forKey) {
+    return function () {
+      var value = Ref()
+      const retrieved = this.toNSURL().getResourceValueForKeyError(value, forKey, $())
+      if (!retrieved || value.length === 0 || value[0].isNil()) return undefined
+      return value[0].js
+    }
+  }
+
+  /**
+   * File system properties to create extended `.exists` properties for.
+   * @enum {string}
+   * @private
+   */
+  const _keys = {
+    AsVolume: $.NSURLIsVolumeKey,
+    AsDirectory: $.NSURLIsDirectoryKey,
+    AsPackage: $.NSURLIsPackageKey,
+    AsFile: $.NSURLIsRegularFileKey,
+    AsAlias: $.NSURLIsAliasFileKey,
+    AsSymlink: $.NSURLIsSymbolicLinkKey
+  }
+
+  /**
+   * Generate `.existsAs*` Path properties.
+   * @private
+   */
+  Object.entries(_keys).forEach((entry) => {
+    const name = `exists${entry[0]}`
+    if (!Path.prototype[name]) {
+      Object.defineProperty(Path.prototype, name, {
+        get: _resourceValueGetter(entry[1])
+      })
+    }
+  })
+})()
+
+/**
+ * Reduce empty and current Path parts and resolve parent path parts
+ * (where possible, see caveats in `stringByStandardizingPath` API reference).
+ * @name standardize
+ * @function
+ * @returns {Path}
+ * @memberof Path
+ * @instance
+ */
+if (!Path.prototype.standardize) {
+  Object.defineProperty(Path.prototype, 'standardize', {
+    value: function () {
+      const pathName = $(this.toString()).stringByStandardizingPath
+      return Path(pathName.js)
+    }
+  })
+}
+
+/**
+ * Resolve aliases and symlinks in a Path.
+ * Standardises the path before resolving; when neither alias nor symlink are
+ * part of the path, or the path is not matching a file system object, this is
+ * equivalent to `.standardize`
+ * @name resolve
+ * @function
+ * @returns {Path}
+ * @throws {Error} When encountering an invalid Finder alias in the path.
+ * @memberof Path
+ * @instance
+ */
+if (!Path.prototype.resolve) {
+  Object.defineProperty(Path.prototype, 'resolve', {
+    value: function () {
+      var resolved = $(this.toString()).stringByResolvingSymlinksInPath.js
+      const parts = ObjC.deepUnwrap($.NSURL.fileURLWithPath(resolved).pathComponents)
+
+      // Finder aliases can only be resolved if the path points to them,
+      // not if they are part of it, hence the need to iterate over the path parts.
+      resolved = parts.reduce((resolvedParts, currentPart) => {
+        var error = $()
+        let url = $.NSURL.fileURLWithPathComponents(resolvedParts.concat(currentPart))
+        url = $.NSURL.URLByResolvingAliasFileAtURLOptionsError(
+          url, $.NSURLBookmarkResolutionWithoutUI, error
+        )
+        if (url.isNil()) throw new Error(error.localizedDescription.js)
+        return ObjC.deepUnwrap(url.pathComponents)
+      }, [])
+
+      resolved = $.NSURL.fileURLWithPathComponents(resolved)
+      return Path(resolved.path.js)
+    }
+  })
+}
+
+/**
+ * Get the last part of a path.
+ * @name tail
+ * @property {string} The last path part.
+ * @readonly
+ * @memberof Path
+ * @instance
+ */
+if (!Path.prototype.tail) {
+  Object.defineProperty(Path.prototype, 'tail', {
+    get: function () {
+      return $(this.toString()).lastPathComponent.js
+    }
+  })
+}
+
+/**
+ * Strip a path of its last component(s).
+ * @name shorten
+ * @function
+ * @returns {Path}
+ * @param {number} [by=1] - Number of path components to strip from Path end.
+ * @memberof Path
+ * @instance
+ */
+if (!Path.prototype.shorten) {
+  Object.defineProperty(Path.prototype, 'shorten', {
+    value: function (by) {
+      var pathName = $(this.toString())
+      var count = by > 0 ? by : 1
+      while (count-- > 0) {
+        pathName = pathName.stringByDeletingLastPathComponent
+      }
+      return Path(pathName.js)
+    }
+  })
+}
+
+/**
+ * Append (a) path part(s) to a path.
+ * @name extend
+ * @function
+ * @returns {Path}
+ * @param {string|string[]} by - Path component(s) to append to Path end.
+ * @memberof Path
+ * @instance
+ */
+if (!Path.prototype.extend) {
+  Object.defineProperty(Path.prototype, 'extend', {
+    value: function (by) {
+      const parts = Array.isArray(by) ? by.slice() : Array(by)
+      var pathName = $(this.toString())
+      parts.forEach(p => {
+        pathName = pathName.stringByAppendingPathComponent(p)
+      })
+      return Path(pathName.js)
+    }
+  })
+}
+
+/**
+ * Get the extension of a Path.
+ * @name extension
+ * @property {string} The path extension.
+ * @readonly
+ * @memberof Path
+ * @instance
+ */
+if (!Path.prototype.extension) {
+  Object.defineProperty(Path.prototype, 'extension', {
+    get: function () {
+      return $(this.toString()).pathExtension.js
+    }
+  })
+}
+
+/**
+ * Strip the extension from a Path.
+ * Note this also strips a trailing slash from a directory path.
+ * @name stripExtension
+ * @function
+ * @returns {Path}
+ * @memberof Path
+ * @instance
+ */
+if (!Path.prototype.stripExtension) {
+  Object.defineProperty(Path.prototype, 'stripExtension', {
+    value: function () {
+      const pathName = $(this.toString()).stringByDeletingPathExtension.js
+      return Path(pathName)
+    }
+  })
+}
+
+/**
+ * Append an extension to a Path.
+ * @name appendExtension
+ * @function
+ * @returns {Path}
+ * @param {string} extension - Extension to append to Path end.
+ * @memberof Path
+ * @instance
+ */
+if (!Path.prototype.appendExtension) {
+  Object.defineProperty(Path.prototype, 'appendExtension', {
+    value: function (extension) {
+      const pathName = $(this.toString()).stringByAppendingPathExtension(extension).js
+      return Path(pathName)
+    }
+  })
+}
+
+/**
+ * Insert a suffix between the name and extension of a Path.
+ * Note this does not try to be smart in any way, so
+ * repeated uses will append multiple suffixes.
+ * @example
+ * var path = Path('/path/to/file.ext')
+ * path = path.suffix('foo') // '/path/to/file-foo.ext'
+ * path = path.suffix(3)     // '/path/to/file-3.ext'
+ * path = path.suffix(3)     // '/path/to/file-3-3.ext'
+ * @example
+ * // Find a unique number for a path copy, Finder-like:
+ * var path = Path('/path/to/file.ext')
+ * var index = 1
+ * while (path.suffix(index).exists) index++
+ * path = path.suffix(index)
+ * @name insertSuffix
+ * @function
+ * @returns {Path}
+ * @param {string} suffix - The suffix to append to the base Path.
+ * @param {string} [separator='-'] - The separator between base name and suffix.
+ * @memberof Path
+ * @since 5.0.0
+ * @instance
+ */
+if (!Path.prototype.insertSuffix) {
+  Object.defineProperty(Path.prototype, 'insertSuffix', {
+    value: function (suffix, separator) {
+      if (suffix == null) return this
+      const pathNSString = $(this.toString())
+      const base = pathNSString.stringByDeletingPathExtension.js
+      const ext = pathNSString.pathExtension.js
+      const sep = separator != null ? separator : '-'
+      return Path(`${base}${sep.toString()}${suffix.toString()}.${ext}`)
+    }
+  })
+}
