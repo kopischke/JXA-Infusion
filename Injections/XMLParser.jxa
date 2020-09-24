@@ -9,14 +9,26 @@
  * @namespace XMLParser
  */
 
+/**
+ * @mixin XMLElement
+ */
 const XMLElementProperties = {
   // TODO: implement element node interface
 }
 
+/**
+ * @mixin XMLDocument
+ */
 const XMLDocumentProperties = {
+  /**
+   * The XML document encoding.
+   * @property encoding
+   * @param {number) encoding - NSStringEncoding to use.
+   * @memberof XMLDocument
+   */
   encoding: {
-    get: function () { return this._raw.characterEncoding.js },
-    set: function (e) { this._raw.characterEncoding = e.toString() }
+    get: function () { return Number(this._raw.characterEncoding.js) },
+    set: function (enc) { this._raw.characterEncoding = enc }
   },
   contentKind: {
     get: function () { return this._raw.documentContentKind.js },
@@ -65,18 +77,22 @@ const XMLDocumentProperties = {
 /**
  * An XML node (wraps NSXMLNode and subclasses).
  * NSXMLElement and NSXMLDocument are represented as specialised forms
- * of this object instead of as derived classes. This is the best way to model
- * the polymorphic constructors in Apple’s NSXML API. Just to show why,
+ * of this object instead of as derived classes. This means that document
+ * nodes will include {@link XMLDocument} functionality, and element nodes
+ *  will include {@link XMLElement} functionality.
  *
- * ```js
- * var node = $.NSXMLNode.alloc.initWithKind($.NSXMLDocumentKind)
- * node.isKindOfClass($.NSXMLDocument.class) // true
- * ```
- *
- * will return `true`, i.e. NXMLNode constructors return the NSXMLNode
- * subclass that matches the node’s `kind`. This kind of class juggling is
- * impossible to track across glorified JXA wrappers.
+ * This is the best way to model the polymorphic constructors in Apple’s
+ * NSXML API, in which the NXMLNode constructor returns the NSXMLNode subclass
+ * that matches the node’s `kind`.
+ * @example
+ * const node = XMLParser.fromXMLFile('/path/to/file.xml')
+ * node.encoding != null // true (is an XMLDocument)
+ * node.rootElement.encoding != null // false (is an XMLElement)
  * @class XMLNode
+ * @mixes XMLDocument
+ * @see {@link XMLDocument}
+ * @mixes XMLElement
+ * @see {@link XMLElement}
  */
 function XMLNode (from) {
   let node = from instanceof XMLNode ? from._raw : from
@@ -95,12 +111,12 @@ function XMLNode (from) {
 
   // Specialised element node interface.
   if (_NSXMLObject.kind === $.NSXMLElementKind) {
-    Object.defineProperties(XMLNode.prototype, XMLElementProperties)
+    Object.defineProperties(this, XMLElementProperties)
   }
 
   // Specialised document node interface.
   if (_NSXMLObject.kind === $.NSXMLDocumentKind) {
-    Object.defineProperties(XMLNode.prototype, XMLDocumentProperties)
+    Object.defineProperties(this, XMLDocumentProperties)
   }
 }
 
