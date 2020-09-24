@@ -39,6 +39,66 @@ function XMLNode (from) {
    * @private
    */
   Object.defineProperty(this, '_raw', { get: function () { return _NSXMLObject } })
+
+  // Specialised element node interface.
+  if (_NSXMLObject.kind === $.NSXMLElementKind) {
+    Object.defineProperties(XMLNode.prototype, {
+      // TODO: implement element node interface
+    })
+  }
+
+  // Specialised document node interface.
+  if (_NSXMLObject.kind === $.NSXMLDocumentKind) {
+    Object.defineProperties(XMLNode.prototype, {
+      encoding: {
+        get: function () { return this._raw.characterEncoding.js },
+        set: function (e) { this._raw.characterEncoding = e.toString() }
+      },
+      contentKind: {
+        get: function () { return this._raw.documentContentKind.js },
+        set: function (k) { this._raw.documentContentKind = k.toString() }
+      },
+      DTD: {
+        get: function () { return this._raw.DTD },
+        set: function (d) { this._raw.setDTD(d) }
+      },
+      standalone: {
+        get: function () { return this._raw.isStandalone.js },
+        set: function (b) { this._raw.standalone(b === true) }
+      },
+      MIMEType: {
+        get: function () { return this._raw.MIMEType.js },
+        set: function (m) { this._raw.setMIMEType(m.toString()) }
+      },
+      // URI is inherited from XMLNode
+      version: {
+        get: function () { return this._raw.version.js },
+        set: function (v) { this._raw.version = v.toString() }
+      },
+      rootElement: {
+        get: function () { return new XMLNode(this._raw.rootElement) },
+        set: function (e) {
+          const elem = e instanceof XMLNode ? e._raw : e
+          this._raw.setRootElement(elem)
+        }
+      },
+      validate: {
+        value: function (quiet) {
+          var error = $()
+          const valid = this._raw.validateAndReturnError(error)
+          if (!quiet && !valid) throw new Error(error.localizedDescription.js)
+          return valid
+        }
+      },
+      toData: {
+        value: function (options) {
+          const opts = Number(options || $.NSXMLPreserveAll)
+          return this._raw.XMLDataWithOptions(opts)
+        }
+      }
+    })
+  }
+
 }
 
 // Common XMLNode interface. Mostly wrappers for the NSXMLNode interface,
@@ -159,65 +219,6 @@ Object.defineProperties(XMLNode.prototype, {
   }
 })
 
-// Specialised element node interface.
-if (this._raw.kind === $.NSXMLElementKind) {
-  Object.defineProperties(XMLNode.prototype, {
-    // TODO: implement element node interface
-  })
-}
-
-// Specialised document node interface.
-if (this._raw.kind === $.NSXMLDocumentKind) {
-  Object.defineProperties(XMLNode.prototype, {
-    encoding: {
-      get: function () { return this._raw.characterEncoding.js },
-      set: function (e) { this._raw.characterEncoding = e.toString() }
-    },
-    contentKind: {
-      get: function () { return this._raw.documentContentKind.js },
-      set: function (k) { this._raw.documentContentKind = k.toString() }
-    },
-    DTD: {
-      get: function () { return this._raw.DTD },
-      set: function (d) { this._raw.setDTD(d) }
-    },
-    standalone: {
-      get: function () { return this._raw.isStandalone.js },
-      set: function (b) { this._raw.standalone(b === true) }
-    },
-    MIMEType: {
-      get: function () { return this._raw.MIMEType.js },
-      set: function (m) { this._raw.setMIMEType(m.toString()) }
-    },
-    // URI is inherited from XMLNode
-    version: {
-      get: function () { return this._raw.version.js },
-      set: function (v) { this._raw.version = v.toString() }
-    },
-    rootElement: {
-      get: function () { return new XMLNode(this._raw.rootElement) },
-      set: function (e) {
-        const elem = e instanceof XMLNode ? e._raw : e
-        this._raw.setRootElement(elem)
-      }
-    },
-    validate: {
-      value: function (quiet) {
-        var error = $()
-        const valid = this._raw.validateAndReturnError(error)
-        if (!quiet && !valid) throw new Error(error.localizedDescription.js)
-        return valid
-      }
-    },
-    toData: {
-      value: function (options) {
-        const opts = Number(options || $.NSXMLPreserveAll)
-        return this._raw.XMLDataWithOptions(opts)
-      }
-    }
-  })
-}
-
 const XMLParser = {
   /**
    * Default NSXMLNodeOptions for parsing document XML.
@@ -279,4 +280,4 @@ const XMLParser = {
     if (doc.isNil()) throw new Error(error.localizedDescription.js)
     return new XMLNode(doc)
   }
-}.freeze()
+}
