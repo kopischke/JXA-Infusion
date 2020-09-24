@@ -173,7 +173,7 @@ Object.defineProperties(XMLNode.prototype, {
    * @function nodesForXPath
    * @returns {XMLNode[]} The nodes conforming to the query.
    * @param {string} query - The XPath query to evaluate.
-   * @throws When the XPath query fails.
+   * @throws {Error} When the XPath query fails.
    * @memberof XMLNode
    * @instance
    */
@@ -191,7 +191,7 @@ Object.defineProperties(XMLNode.prototype, {
   * @returns {XMLNode[]} The nodes conforming to the query.
   * @param {string} query - The XQuery query to evaluate.
   * @param {Object} [constants] - Constants to pass to the query.
-  * @throws When the XQuery query fails.
+  * @throws {Error} When the XQuery query fails.
   * @memberof XMLNode
   * @instance
   */
@@ -262,7 +262,7 @@ const XMLParser = {
    * @returns {XMLNode}
    * @param {string} xml - The XML string to parse.
    * @param {number} options - Bit mask of OR’ed NSXMLNodeOptions.
-   * @throws When given invalid input or a a parsing error occurs.
+   * @throws {Error} When given invalid input or a a parsing error occurs.
    * @memberof XMLParser
    * @static
    */
@@ -279,7 +279,7 @@ const XMLParser = {
    * @function fromXMLFragment
    * @returns {XMLNode}
    * @param {string} xml - The XML string to parse.
-   * @throws When given invalid input or a a parsing error occurs.
+   * @throws {Error} When given invalid input or a a parsing error occurs.
    * @memberof XMLParser
    * @static
    */
@@ -296,7 +296,7 @@ const XMLParser = {
    * @returns {XMLNode}
    * @param {string|Path} path - The path to the XML file to parse.
    * @param {number} options - Bit mask of OR’ed NSXMLNodeOptions.
-   * @throws When given invalid input or a a parsing error occurs.
+   * @throws {Error} When given invalid input or a a parsing error occurs.
    * @memberof XMLParser
    * @static
    */
