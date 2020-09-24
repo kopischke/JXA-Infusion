@@ -17,7 +17,7 @@
  *
  * ```js
  * var node = $.NSXMLNode.alloc.initWithKind($.NSXMLDocumentKind)
- * node.isKindOfClass($.NSXMLDocument.class)
+ * node.isKindOfClass($.NSXMLDocument.class) // true
  * ```
  *
  * will return `true`, i.e. NXMLNode constructors return the NSXMLNode
