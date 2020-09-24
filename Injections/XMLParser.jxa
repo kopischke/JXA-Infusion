@@ -45,9 +45,9 @@ function XMLNode (from) {
 // with a bit of `Node` semantics thrown in for convenience.
 Object.defineProperties(XMLNode.prototype, {
   index: { get: function () { return Number(this._raw.index) } },
-  kind:  { get: function () { return Number(this._raw.kind) } },
+  kind: { get: function () { return Number(this._raw.kind) } },
   level: { get: function () { return Number(this._raw.level) } },
-  name:  { get: function () { return this._raw.name.js } },
+  name: { get: function () { return this._raw.name.js } },
   stringValue: {
     get: function () { return this._raw.stringValue.js },
     set: function (string, resolve) {
@@ -147,9 +147,9 @@ Object.defineProperties(XMLNode.prototype, {
       const otherRoot = other._raw.rootDocument
       if (
         thisNode.index !== otherNode.index ||
-        thisNode.kind  !== otherNode.kind  ||
+        thisNode.kind !== otherNode.kind ||
         thisNode.level !== otherNode.level ||
-        thisNode.name  !== otherNode.name  ||
+        thisNode.name !== otherNode.name ||
         thisRoot.isNil() !== otherRoot.isNil()
       ) return false
       const node = thisNode.isEqual(otherNode)
