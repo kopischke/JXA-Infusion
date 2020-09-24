@@ -10,14 +10,18 @@
  */
 
 /**
+ * An element node.
  * @mixin XMLElement
+ * @see {@link XMLNode}
  */
 const XMLElementProperties = {
   // TODO: implement element node interface
 }
 
 /**
+ * A document node.
  * @mixin XMLDocument
+ * @see {@link XMLNode}
  */
 const XMLDocumentProperties = {
   /**
@@ -84,15 +88,21 @@ const XMLDocumentProperties = {
  * This is the best way to model the polymorphic constructors in Apple’s
  * NSXML API, in which the NXMLNode constructor returns the NSXMLNode subclass
  * that matches the node’s `kind`.
+ *
+ * To construct nodes from XML document files, XML document strings and
+ * XML fragments, use the {@link XMLParser.fromXMLFile},
+ * {@link XMLParser.fromXMLDocument} and {@link XMLParser.fromXMLFragment}
+ * static methods.
  * @example
  * const node = XMLParser.fromXMLFile('/path/to/file.xml')
  * node.encoding != null // true (is an XMLDocument)
  * node.rootElement.encoding != null // false (is an XMLElement)
  * @class XMLNode
  * @mixes XMLDocument
- * @see {@link XMLDocument}
  * @mixes XMLElement
+ * @see {@link XMLDocument}
  * @see {@link XMLElement}
+ * @see {@link XMLParser}
  */
 function XMLNode (from) {
   let node = from instanceof XMLNode ? from._raw : from
