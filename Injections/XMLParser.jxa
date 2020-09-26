@@ -212,7 +212,7 @@ Object.defineProperties(XMLNode.prototype, {
   },
   toCanonicalString: {
     value: function (withComments) {
-      const comments = withComments != null
+      const comments = withComments == true
       return this._raw.canonicalXMLStringPreservingComments(comments).js
     }
   },
