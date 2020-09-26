@@ -216,6 +216,11 @@ Object.defineProperties(XMLNode.prototype, {
       return this._raw.canonicalXMLStringPreservingComments(comments).js
     }
   },
+  toJSON: {
+    value: function () {
+      return this.toCanonicalString(true)
+    }
+  },
   isConnected: {
     get: function () { return !this._raw.rootDocument.isNil() }
   },
