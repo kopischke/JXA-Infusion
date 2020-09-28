@@ -9,6 +9,13 @@
  * @namespace XMLParser
  */
 
+/** @private */
+const minOSVersion = { majorVersion: 10, minorVersion: 12, patchVersion: 0 }
+if (!$.NSProcessInfo.processInfo.isOperatingSystemAtLeastVersion(minOSVersion)) {
+  const msg = `macOS ${Object.values(minOSVersion).join('.')} required`
+  throw new Error(msg)
+}
+
 /**
  * An element node.
  * @mixin XMLElement
@@ -104,70 +111,80 @@ const XMLDocumentProperties = {
  * @see {@link XMLElement}
  * @see {@link XMLParser}
  */
-function XMLNode (from) {
-  let node = from instanceof XMLNode ? from._raw : from
-  if (node == null) node = $.NSXMLNode.alloc.initWithKind($.NSXMLInvalidKind)
+class XMLNode {
+  constructor (from) {
+    let node = from instanceof XMLNode ? from._raw : from
+    if (node == null) node = $.NSXMLNode.alloc.initWithKind($.NSXMLInvalidKind)
 
-  /** @private */
-  const _NSXMLObject = node
+    /** @private */
+    const _NSXMLObject = node
 
-  /**
-   * Accessor for the underlying NSXMLNode object.
-   * @member {object} _raw - The raw `NSXMLNode` object underlying the XMLNode.
-   * @instance
-   * @private
-   */
-  Object.defineProperty(this, '_raw', { get: function () { return _NSXMLObject } })
+    /**
+     * Accessor for the underlying NSXMLNode object.
+     * @member {object} _raw - The raw `NSXMLNode` object underlying the XMLNode.
+     * @instance
+     * @private
+     */
+    Object.defineProperty(this, '_raw', { get: function () { return _NSXMLObject } })
 
-  // Specialised element node interface.
-  if (_NSXMLObject.kind === $.NSXMLElementKind) {
-    Object.defineProperties(this, XMLElementProperties)
+    // Specialised element node interface.
+    if (_NSXMLObject.kind === $.NSXMLElementKind) {
+      Object.defineProperties(this, XMLElementProperties)
+    }
+
+    // Specialised document node interface.
+    if (_NSXMLObject.kind === $.NSXMLDocumentKind) {
+      Object.defineProperties(this, XMLDocumentProperties)
+    }
   }
 
-  // Specialised document node interface.
-  if (_NSXMLObject.kind === $.NSXMLDocumentKind) {
-    Object.defineProperties(this, XMLDocumentProperties)
+  // Common XMLNode interface. Mostly wrappers for the NSXMLNode interface,
+  // with a bit of `Node` semantics thrown in for convenience.
+  get index () {
+    return Number(this._raw.index)
   }
-}
 
-// Common XMLNode interface. Mostly wrappers for the NSXMLNode interface,
-// with a bit of `Node` semantics thrown in for convenience.
-Object.defineProperties(XMLNode.prototype, {
-  index: { get: function () { return Number(this._raw.index) } },
-  kind: { get: function () { return Number(this._raw.kind) } },
-  level: { get: function () { return Number(this._raw.level) } },
-  name: { get: function () { return this._raw.name.js } },
-  stringValue: {
-    get: function () { return this._raw.stringValue.js },
-    set: function (string, resolve) {
-      const str = string.toString()
-      const res = resolve === true
-      this._raw.setStringValueResolvingEntities(str, res)
-    }
-  },
-  URI: {
-    get: function () { return this._raw.URI.js },
-    set: function (uri) { return this._raw.setURI(uri.toString()) }
-  },
-  rootDocument: {
-    get: function () {
-      if (this.kind === $.NSXMLDocumentKind) return this
-      const root = this._raw.rootDocument
-      return root.isNil() ? undefined : new XMLNode(root)
-    }
-  },
-  parent: {
-    get: function () {
-      const parent = this._raw.parent
-      return parent.isNil() ? undefined : new XMLNode(parent)
-    }
-  },
-  detach: {
-    value: function () {
-      const root = this._raw.rootDocument
-      if (!root.isNil()) this._raw.detach
-    }
-  },
+  get kind () {
+    return Number(this._raw.kind)
+  }
+
+  get level () {
+    return Number(this._raw.level)
+  }
+
+  get name () {
+    return this._raw.name.js
+  }
+
+  get stringValue () { return this._raw.stringValue.js }
+  set stringValue (string) {
+    this._raw.setStringValueResolvingEntities(string.toString(), false)
+  }
+
+  get URI () {
+    return this._raw.URI.js
+  }
+
+  set URI (uri) {
+    return this._raw.setURI(uri.toString())
+  }
+
+  get rootDocument () {
+    if (this.kind === $.NSXMLDocumentKind) return this
+    const root = this._raw.rootDocument
+    return root.isNil() ? undefined : new XMLNode(root)
+  }
+
+  get parent () {
+    const parent = this._raw.parent
+    return parent.isNil() ? undefined : new XMLNode(parent)
+  }
+
+  detach () {
+    const root = this._raw.rootDocument
+    if (!root.isNil()) this._raw.detach
+  }
+
   /**
    * Query an XMLNode using XPath.
    * @function nodesForXPath
@@ -177,14 +194,13 @@ Object.defineProperties(XMLNode.prototype, {
    * @memberof XMLNode
    * @instance
    */
-  nodesForXPath: {
-    value: function (query) {
-      var error = $()
-      const found = this._raw.nodesForXPathError(query, error)
-      if (found.isNil()) throw new Error(error.localizedDescription.js)
-      return found.js.map(function (n) { return new XMLNode(n) })
-    }
-  },
+  nodesForXPath (query) {
+    var error = $()
+    const found = this._raw.nodesForXPathError(query, error)
+    if (found.isNil()) throw new Error(error.localizedDescription.js)
+    return found.js.map(function (n) { return new XMLNode(n) })
+  }
+
   /**
    * Query an XMLNode using XQuery.
    * @function nodesForXQuery
@@ -195,63 +211,57 @@ Object.defineProperties(XMLNode.prototype, {
    * @memberof XMLNode
    * @instance
    */
-  nodesForXQuery: {
-    value: function (query, constants) {
-      var error = $()
-      const consts = constants || null
-      const found = this._raw.objectsForXQueryConstantsError(query, consts, error)
-      if (found.isNil()) throw new Error(error.localizedDescription.js)
-      return found.js.map(function (n) { return new XMLNode(n) })
-    }
-  },
-  toString: {
-    value: function (options) {
-      const opts = Number(options || $.NSXMLNodeOptionsNone)
-      return this._raw.XMLStringWithOptions(opts).js
-    }
-  },
-  toCanonicalString: {
-    value: function (withComments) {
-      const comments = withComments === true
-      return this._raw.canonicalXMLStringPreservingComments(comments).js
-    }
-  },
-  toJSON: {
-    value: function () {
-      return this.toCanonicalString(true)
-    }
-  },
-  isConnected: {
-    get: function () { return !this._raw.rootDocument.isNil() }
-  },
-  isEqualNode: {
-    value: function (other) {
-      // The NSXMLNode implementation of `isEqual` compares the hashes,
-      // thus conforming to the documented `NSObject` protocol behaviour
-      // (which is not the same as the undocumented `NSObject` default
-      // implementation, see https://stackoverflow.com/a/4253490).
-      return this._raw.isEqual(other._raw)
-    }
-  },
-  isSameNode: {
-    value: function (other) {
-      const thisNode = this._raw
-      const thisRoot = this._raw.rootDocument
-      const otherNode = other._raw
-      const otherRoot = other._raw.rootDocument
-      if (
-        thisNode.index !== otherNode.index ||
-        thisNode.kind !== otherNode.kind ||
-        thisNode.level !== otherNode.level ||
-        thisNode.name !== otherNode.name ||
-        thisRoot.isNil() !== otherRoot.isNil()
-      ) return false
-      const node = thisNode.isEqual(otherNode)
-      const root = thisRoot.isNil() ? thisRoot.isEqual(otherRoot) : true
-      return node && root
-    }
+  nodesForXQuery (query, constants) {
+    var error = $()
+    const consts = constants || null
+    const found = this._raw.objectsForXQueryConstantsError(query, consts, error)
+    if (found.isNil()) throw new Error(error.localizedDescription.js)
+    return found.js.map(function (n) { return new XMLNode(n) })
   }
-})
+
+  toString (options) {
+    const opts = Number(options || $.NSXMLNodeOptionsNone)
+    return this._raw.XMLStringWithOptions(opts).js
+  }
+
+  toCanonicalString (withComments) {
+    const comments = withComments === true
+    return this._raw.canonicalXMLStringPreservingComments(comments).js
+  }
+
+  toJSON () {
+    return this.toCanonicalString(true)
+  }
+
+  isConnected () {
+    return !this._raw.rootDocument.isNil()
+  }
+
+  isEqualNode (other) {
+    // The NSXMLNode implementation of `isEqual` compares the hashes,
+    // thus conforming to the documented `NSObject` protocol behaviour
+    // (which is not the same as the undocumented `NSObject` default
+    // implementation, see https://stackoverflow.com/a/4253490).
+    return this._raw.isEqual(other._raw)
+  }
+
+  isSameNode (other) {
+    const thisNode = this._raw
+    const thisRoot = this._raw.rootDocument
+    const otherNode = other._raw
+    const otherRoot = other._raw.rootDocument
+    if (
+      thisNode.index !== otherNode.index ||
+      thisNode.kind !== otherNode.kind ||
+      thisNode.level !== otherNode.level ||
+      thisNode.name !== otherNode.name ||
+      thisRoot.isNil() !== otherRoot.isNil()
+    ) return false
+    const node = thisNode.isEqual(otherNode)
+    const root = thisRoot.isNil() ? thisRoot.isEqual(otherRoot) : true
+    return node && root
+  }
+}
 
 const XMLParser = {
   /**
