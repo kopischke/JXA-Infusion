@@ -26,8 +26,7 @@ const XMLElementProperties = {
 const XMLDocumentProperties = {
   /**
    * The XML document encoding.
-   * @property encoding
-   * @param {number) encoding - NSStringEncoding to use.
+   * @property {number} encoding - NSStringEncoding.
    * @memberof XMLDocument
    */
   encoding: {
@@ -82,7 +81,7 @@ const XMLDocumentProperties = {
  * An XML node (wraps NSXMLNode and subclasses).
  * NSXMLElement and NSXMLDocument are represented as specialised forms
  * of this object instead of as derived classes. This means that document
- * nodes will include {@link XMLDocument} functionality, and element nodes
+ * nodes will include {@link XMLDocument} functionality, and element nodes
  *  will include {@link XMLElement} functionality.
  *
  * This is the best way to model the polymorphic constructors in Apple’s
@@ -98,6 +97,7 @@ const XMLDocumentProperties = {
  * node.encoding != null // true (is an XMLDocument)
  * node.rootElement.encoding != null // false (is an XMLElement)
  * @class XMLNode
+ * @param {object} [from] - An XMLNode (or NSXMLNode) object to base the node on.
  * @mixes XMLDocument
  * @mixes XMLElement
  * @see {@link XMLDocument}
@@ -113,7 +113,7 @@ function XMLNode (from) {
 
   /**
    * Accessor for the underlying NSXMLNode object.
-   * @member {NSXMLNode} _raw
+   * @member {object} _raw - The raw `NSXMLNode` object underlying the XMLNode.
    * @instance
    * @private
    */
@@ -186,15 +186,15 @@ Object.defineProperties(XMLNode.prototype, {
     }
   },
   /**
-  * Query an XMLNode using XQuery.
-  * @function nodesForXQuery
-  * @returns {XMLNode[]} The nodes conforming to the query.
-  * @param {string} query - The XQuery query to evaluate.
-  * @param {Object} [constants] - Constants to pass to the query.
-  * @throws {Error} When the XQuery query fails.
-  * @memberof XMLNode
-  * @instance
-  */
+   * Query an XMLNode using XQuery.
+   * @function nodesForXQuery
+   * @returns {XMLNode[]} The nodes conforming to the query.
+   * @param {string} query - The XQuery query to evaluate.
+   * @param {object} [constants] - Constants to pass to the query.
+   * @throws {Error} When the XQuery query fails.
+   * @memberof XMLNode
+   * @instance
+   */
   nodesForXQuery: {
     value: function (query, constants) {
       var error = $()
@@ -212,7 +212,7 @@ Object.defineProperties(XMLNode.prototype, {
   },
   toCanonicalString: {
     value: function (withComments) {
-      const comments = withComments == true
+      const comments = withComments === true
       return this._raw.canonicalXMLStringPreservingComments(comments).js
     }
   },
@@ -264,7 +264,7 @@ const XMLParser = {
   /**
    * Create a document XMLNode from an XML string.
    * @function fromXMLDocument
-   * @returns {XMLNode}
+   * @returns {XMLNode} The created XMLNode.
    * @param {string} xml - The XML string to parse.
    * @param {number} options - Bit mask of OR’ed NSXMLNodeOptions.
    * @throws {Error} When given invalid input or a a parsing error occurs.
@@ -282,7 +282,7 @@ const XMLParser = {
   /**
    * Create an element XMLNode from an XML string.
    * @function fromXMLFragment
-   * @returns {XMLNode}
+   * @returns {XMLNode} The created XMLNode.
    * @param {string} xml - The XML string to parse.
    * @throws {Error} When given invalid input or a a parsing error occurs.
    * @memberof XMLParser
@@ -298,7 +298,7 @@ const XMLParser = {
   /**
    * Create a document XMLNode from the contents of an XML file.
    * @function fromXMLFile
-   * @returns {XMLNode}
+   * @returns {XMLNode} The created XMLNode.
    * @param {string|Path} path - The path to the XML file to parse.
    * @param {number} options - Bit mask of OR’ed NSXMLNodeOptions.
    * @throws {Error} When given invalid input or a a parsing error occurs.
