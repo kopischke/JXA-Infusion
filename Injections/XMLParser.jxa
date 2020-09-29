@@ -271,6 +271,7 @@ const XMLParser = {
    * @static
    */
   defaultOptions: Number($.NSXMLNodeOptionsNone),
+
   /**
    * Create a document XMLNode from an XML string.
    * @function fromXMLDocument
@@ -289,6 +290,7 @@ const XMLParser = {
     if (doc.isNil()) throw new Error(error.localizedDescription.js)
     return new XMLNode(doc)
   },
+
   /**
    * Create an element XMLNode from an XML string.
    * @function fromXMLFragment
@@ -305,6 +307,7 @@ const XMLParser = {
     if (elem.isNil()) throw new Error(error.localizedDescription.js)
     return new XMLNode(elem)
   },
+
   /**
    * Create a document XMLNode from the contents of an XML file.
    * @function fromXMLFile
