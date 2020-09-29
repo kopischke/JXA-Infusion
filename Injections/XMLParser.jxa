@@ -85,21 +85,21 @@ const XMLDocumentProperties = {
 }
 
 /**
- * An XML node (wraps NSXMLNode and subclasses).
- * NSXMLElement and NSXMLDocument are represented as specialised forms
+ * An XML node (wraps `NSXMLNode` and subclasses).
+ * `NSXMLElement` and `NSXMLDocument` are represented as specialised forms
  * of this object instead of as derived classes. This means that document
  * nodes will include {@link XMLDocument} functionality, and element nodes
  *  will include {@link XMLElement} functionality.
  *
  * This is the best way to model the polymorphic constructors in Apple’s
- * NSXML API, in which the NXMLNode constructor returns the NSXMLNode subclass
+ * NSXML API, in which the `NXMLNode` constructor returns the `NSXMLNode` subclass
  * that matches the node’s `kind`.
  *
  * To construct nodes from XML document files, XML document strings and
  * XML fragments, use the {@link XMLParser.fromXMLFile},
  * {@link XMLParser.fromXMLDocument} and {@link XMLParser.fromXMLFragment}
  * static methods.
- * @example
+ * @example <caption>Nodes are polymorphic.</caption>
  * const node = XMLParser.fromXMLFile('/path/to/file.xml')
  * node.encoding != null // true (is an XMLDocument)
  * node.rootElement.encoding != null // false (is an XMLElement)
