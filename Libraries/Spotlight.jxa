@@ -1,7 +1,7 @@
 /**
  * macOS native file search functionality.
  * @author Martin Kopischke <martin@kopischke.net>
- * @version 1.5.0
+ * @version 1.5.1
  * @license MIT
  * @namespace Spotlight
  */
@@ -105,7 +105,7 @@ const _private = {
  * @instance
  */
 function find (query, locations, matchValues, sortedBy, maxResults) {
-  // Query execution mode flags (Objective C enum, thus not directly availabe).
+  // Query execution mode flags (Objective C enum, thus not directly available).
   const MDQueryOptionFlags = { Synchronous: 1, WantsUpdate: 4, AllowFSTranslation: 8 }
 
   // Return values Array.
@@ -122,7 +122,7 @@ function find (query, locations, matchValues, sortedBy, maxResults) {
   const pathSortIndex = Array.isArray(querySortAttrs) ? querySortAttrs.indexOf('kMDItemPath') : -1
   const pathSortUsed = pathSortIndex !== -1
   if (pathSortUsed) {
-    // Ignore everything after 'kMDItemPath' (as that is, by defintion, unique).
+    // Ignore everything after 'kMDItemPath' (as that is, by definition, unique).
     pathSortAttrs = querySortAttrs.slice(0, pathSortIndex + 1)
 
     // Let Spotlight sort on everything before 'kMDItemPath' (on the assumption that
@@ -185,12 +185,12 @@ function find (query, locations, matchValues, sortedBy, maxResults) {
 /**
  * Get the Spotlight metadata for a file system item.
  * @returns {object} The Spotlight metadata for the item.
- * @param {string|Path} forPath - Path to the file system object.
+ * @param {string|Path} path - Path to the file system object.
  * @memberof Spotlight
  * @instance
  */
-function metadata (forPath) {
-  const mdItem = $.MDItemCreate($(), $(forPath.toString()))
+function metadata (path) {
+  const mdItem = $.MDItemCreate($(), $(path.toString()))
   if (!mdItem.isNil()) {
     const mdNames = $.MDItemCopyAttributeNames(mdItem)
     const mdAttrs = $.MDItemCopyAttributes(mdItem, mdNames)
