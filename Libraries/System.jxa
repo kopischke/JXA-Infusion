@@ -1,7 +1,7 @@
 /**
  * macOS native system functionality.
  * @author Martin Kopischke <martin@kopischke.net>
- * @version 1.4.0
+ * @version 1.4.1
  * @license MIT
  * @namespace System
  */
@@ -139,9 +139,14 @@ function versionAtLeast (major, minor, patch) {
  * Compare OS version info.
  * Follows sort() semantics (i.e. returns < 0 if the compared version is
  * smaller than the OS one, 0 if identical, > 0 if it is greater than the OS one).
- * Missing or `null`ed arguments will be ignored for comparison purposes,
- * starting with the first one so defined (i.e. `versionCompare(10, null, 5)`
- * only compares the major version).
+ * Missing or `null`ed arguments will be ignored for comparison purposes.
+ * @example <caption>Comparison results</caption>
+ * const sys = Library('System')
+ * // on macOS 10.12.5
+ * sys.versionCompare(10, 12, 5)   // => 0
+ * sys.versionCompare(10, 13)      // => 1
+ * sys.versionCompare(10, null, 5) // => 0
+ * sys.versionCompare()            // => undefined
  * @returns {number} The comparison result according to `sort()` semantics.
  * @param {number} [major] - The major OS version number to compare.
  * @param {number} [minor] - The minor OS version number to compare.
@@ -151,15 +156,17 @@ function versionAtLeast (major, minor, patch) {
  */
 function versionCompare (major, minor, patch) {
   let compared
-  let compVersion = Array.from(arguments)
+  let compVersion = [major, minor, patch]
   const ignoreFrom = compVersion.indexOf(null)
   if (ignoreFrom > -1) compVersion = compVersion.slice(0, ignoreFrom)
 
   const osVerInfo = versionInfo()
   const osVersion = [osVerInfo.majorVersion, osVerInfo.minorVersion, osVerInfo.patchVersion]
   for (let i = 0; i < compVersion.length; i++) {
-    compared = compVersion[i] - osVersion[i]
-    if (compared !== 0) break
+    if (compVersion[i] != null) {
+      compared = compVersion[i] - osVersion[i]
+      if (compared !== 0) break
+    }
   }
   return compared
 }
