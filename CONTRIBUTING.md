@@ -6,26 +6,28 @@ Extensions of, or entirely new, libraries and injections are welcome as long as 
 
 ### API standards
 
-APIs should be generic enough to be of use outside specialised situations. In  design and documentation, they should strive to feel at home besides [JS’ own](https://developer.mozilla.org/en-US/docs/Glossary/JavaScript) (for an example, see [`Array.prototype.findLast`](https://github.com/kopischke/JXA/wiki/Injections-API#findlast)). Where functionality  mimics JS core functionality, it should do so faithfully, even if that means more complexity (for an example, see [`String.prototype.toLocaleCapitalizedForm`](https://github.com/kopischke/JXA/wiki/Injections-API#tolocalecapitalizedform)).
+APIs should be generic enough to be of use outside specialised situations. In design and documentation, they should strive to feel at home besides [JS’ own](https://developer.mozilla.org/en-US/docs/Glossary/JavaScript) (for an example, see [`Array.prototype.findLast`](https://github.com/kopischke/JXA/wiki/Injections-API#findlast)). Where functionality mimics JS core functionality, it should do so faithfully, even if that means more complexity (for an example, see [`String.prototype.toLocaleCapitalizedForm`](https://github.com/kopischke/JXA/wiki/Injections-API#tolocalecapitalizedform)).
 
 ### Coding standards
 
-All code **must** be written in [_JavaScript Standard Style_](https://standardjs.com); functionality **must** be documented with  [_JSDoc_](https://jsdoc.app) tags. Please lint your code for both criteria before submitting, i.e. via [_ESLint_](https://eslint.org) (see below for configuration). 
+All code **must** be written in [_JavaScript Standard Style_](https://standardjs.com); functionality **must** be documented with [_JSDoc_](https://jsdoc.app) tags. Please lint your code for both criteria before submitting, i.e. via [_ESLint_](https://eslint.org) (see below for configuration). 
 
 #### Linting using ESLint
 
-You will need [`eslint-config-standard`](https://github.com/standard/eslint-config-standard)  and [`eslint-plugin-jsdoc`](https://github.com/gajus/eslint-plugin-jsdoc) in your ESLint configuration. Typcially, these steps are needed:
+Standard’s and JXA’s rules for linting do not play well together out of the box. The easiest way to get them to is to do the following:
 
 ```shell
-# Install ESLint to your project development dependencies
+# Install ESLint to your project development dependencies:
 npm install --save-dev eslint
-# Install standard.js ESLint rules
+# Install JXA ESLint configuration and the Standard configuration:
+npm install --save-dev eslint-config-jxa
 npm install --save-dev eslint-config-standard eslint-plugin-standard eslint-plugin-promise eslint-plugin-import eslint-plugin-node
-# Install JSDoc ESLint plugin
+# Install other ESLint plugin:
 npm install --save-dev eslint-plugin-jsdoc
+npm install --save-dev eslint-plugin-json
 ```
 
-The repo contains an [`.eslintrc.json` configuration file](https://github.com/kopischke/JXA/blob/main/.eslintrc.json) with the needed settings to address the most common annoyances when linting JXA code.
+The repo contains an [`.eslintrc.json` configuration file](https://github.com/kopischke/JXA/blob/main/.eslintrc.json) with the necessary overrides to handle JXA Infusion code gracefully.
 
 #### Editor configuration
 

@@ -1,13 +1,8 @@
 {
   "extends": [
-    "standard",
-    "plugin:jsdoc/recommended"
-  ],
-  "parserOptions": {
-    "ecmaVersion": 6
-  },
-  "plugins": [
-    "jsdoc"
+    "plugin:jsdoc/recommended",
+    "plugin:json/recommended",
+    "standard"
   ],
   "rules": {
     "jsdoc/newline-after-description": "off"
@@ -15,41 +10,23 @@
   "overrides": [
     {
       "files": ["*.jxa"],
-      "env": {
-        "applescript": true,
-        "es6": true
-      },
-      "globals": {
-        "Automation": "readonly",
-        "Application": "readonly",
-        "Library": "readonly",
-        "Path": "readonly",
-        "Progress": "readonly",
-        "ObjectSpecifier": "readonly",
-        "ObjC": "readonly",
-        "Ref": "readonly",
-        "$": "readonly",
-        "console.log": "readonly",
-        "delay": "readonly"
-      },
-      "rules": {
-        // Accept void ObjC bridge function expressions.
-        "no-unused-expressions": "off"
-      }
+      "extends": [
+        "jxa"
+      ]
     },
     {
-      "files": ["Injections/*.jxa"],
-      "rules": {
-        // Accept monkey-patching of standard objects.
-        "no-extend-native": "off"
-      }
+      "files": ["Injections/**/*.jxa"],
+      "extends": [
+        "jxa/objc",
+        "jxa/injection"
+      ]
     },
     {
-      "files": ["Libraries/*.jxa"],
-      "rules": {
-        // Accept top-level function definitions without use in the file.
-        "no-unused-vars": "off"
-      }
+      "files": ["Libraries/**/*.jxa"],
+      "extends": [
+        "jxa/objc",
+        "jxa/library"
+      ]
     }
   ]
 }
