@@ -1,7 +1,7 @@
 /**
  * macOS native system functionality.
  * @author Martin Kopischke <martin@kopischke.net>
- * @version 1.4.1
+ * @version 1.4.2
  * @license MIT
  * @namespace System
  */
@@ -155,13 +155,11 @@ function versionAtLeast (major, minor, patch) {
  * @instance
  */
 function versionCompare (major, minor, patch) {
-  let compared
-  let compVersion = [major, minor, patch]
-  const ignoreFrom = compVersion.indexOf(null)
-  if (ignoreFrom > -1) compVersion = compVersion.slice(0, ignoreFrom)
-
+  const compVersion = [major, minor, patch]
   const osVerInfo = versionInfo()
   const osVersion = [osVerInfo.majorVersion, osVerInfo.minorVersion, osVerInfo.patchVersion]
+
+  let compared
   for (let i = 0; i < compVersion.length; i++) {
     if (compVersion[i] != null) {
       compared = compVersion[i] - osVersion[i]
