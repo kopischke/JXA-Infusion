@@ -1,8 +1,8 @@
 ## How to contribute
 
-The libraries and injections for JXA found in this repository originate in my personal automation needs. I have tried to keep them modular and generic enough to be useful outside the scenarios they were created for, but I don’t strive for “standard library“ levels of completeness. This means new features will probably only be added if you contribute code for them.
+The libraries and injections for JXA found in this repository originate in my personal automation needs. I have tried to keep them modular and generic enough to be useful outside the scenarios they were created for, but I never aimed for “standard library“ levels of completeness. This means new features will only be added when I need them, or if you contribute code for them.
 
-Extensions of, or entirely new, libraries and injections are welcome as long as their philosophy and API blends with the existing set, and as long as they follow the coding standards outlined below.
+Extensions of, or entirely new, libraries and injections are welcome as long as their philosophy and API blend with the existing set, and as long as they follow the coding standards outlined below.
 
 ### API standards
 
