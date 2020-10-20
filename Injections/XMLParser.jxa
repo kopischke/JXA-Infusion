@@ -161,13 +161,8 @@ class XMLNode {
     this._raw.setStringValueResolvingEntities(string.toString(), false)
   }
 
-  get URI () {
-    return this._raw.URI.js
-  }
-
-  set URI (uri) {
-    return this._raw.setURI(uri.toString())
-  }
+  get URI () { return this._raw.URI.js }
+  set URI (uri) { return this._raw.setURI(uri.toString()) }
 
   get rootDocument () {
     if (this.kind === $.NSXMLDocumentKind) return this
